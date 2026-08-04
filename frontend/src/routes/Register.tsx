@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, useAction } from "../lib/api";
 import { Alert, Button, Field, Select, cx } from "../components/ui";
 import { IconBus, IconCheck, IconSchool, IconUsers } from "../components/icons";
+import { normaliseCode, normalisePhone } from "../lib/input";
 import { AuthLayout } from "./Login";
 
 type Kind = "school" | "owner" | "driver";
@@ -20,8 +21,8 @@ export default function Register() {
   const { busy, error, run } = useAction();
 
   const set = (k: string) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
-  const digits = (k: string, max: number) => (e: { target: { value: string } }) =>
-    setForm({ ...form, [k]: e.target.value.replace(/\D/g, "").slice(0, max) });
+  const digits = (k: string) => (e: { target: { value: string } }) =>
+    setForm({ ...form, [k]: normalisePhone(e.target.value) });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +146,7 @@ export default function Register() {
                 label="School code (optional)"
                 hint="If you already drive for a school"
                 value={form.schoolCode ?? ""}
-                onChange={(e) => setForm({ ...form, schoolCode: e.target.value.toUpperCase().slice(0, 6) })}
+                onChange={(e) => setForm({ ...form, schoolCode: normaliseCode(e.target.value) })}
               />
             </div>
           </>
@@ -155,7 +156,7 @@ export default function Register() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Mobile number" inputMode="numeric" hint="You'll sign in with this"
-            value={form.phone ?? ""} onChange={digits("phone", 10)} required />
+            value={form.phone ?? ""} onChange={digits("phone")} required />
           <Field label="City" value={form.city ?? ""} onChange={set("city")} />
         </div>
 

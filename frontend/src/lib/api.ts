@@ -23,6 +23,17 @@ export class ApiError extends Error {
 }
 
 /**
+ * "validation failed" tells a user nothing. The server already sends which
+ * field and why in `details` — surface that, or the person staring at the form
+ * has no idea which box is wrong.
+ */
+function messageFor(data: { error?: string; details?: unknown }, status: number): string {
+  const first = Array.isArray(data?.details) ? (data.details[0] as { message?: string }) : null;
+  if (first?.message) return first.message;
+  return data?.error ?? `Something went wrong (${status})`;
+}
+
+/**
  * Access tokens last 15 minutes, so a refresh mid-session is normal rather than
  * exceptional. One refresh runs at a time and every waiting request joins it —
  * otherwise ten parallel calls would each rotate the token and nine would lose.
@@ -86,7 +97,7 @@ export async function api<T = any>(path: string, options: Options = {}): Promise
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error ?? `Something went wrong (${res.status})`, data.details);
+  if (!res.ok) throw new ApiError(res.status, messageFor(data, res.status), data.details);
   return data as T;
 }
 

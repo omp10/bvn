@@ -4,6 +4,7 @@ import { api, useAction } from "../lib/api";
 import { HOME, useAuth, type Session } from "../lib/auth";
 import { Logo, LogoFull, Tagline } from "../components/Logo";
 import { Alert, Button, Field } from "../components/ui";
+import { normalisePhone } from "../lib/input";
 import { IconBell, IconPin, IconShield } from "../components/icons";
 
 /** Split screen: brand story on the left, the form on the right. */
@@ -111,7 +112,7 @@ export default function Login() {
           autoComplete="username"
           placeholder="10-digit number"
           value={phone}
-          onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+          onChange={(e) => setPhone(normalisePhone(e.target.value))}
           required
           autoFocus
         />

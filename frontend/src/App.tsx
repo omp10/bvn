@@ -27,6 +27,7 @@ import { SchoolActivity, SchoolRoles } from "./routes/school/Roles";
 import { SchoolAlerts, SchoolReports, SchoolRequests, SchoolRoutes } from "./routes/school/Ops";
 import { FleetDashboard, FleetDrivers, FleetVehicles } from "./routes/fleet/Fleet";
 import { DriverHistory, DriverToday } from "./routes/Driver";
+import DriverLive from "./routes/DriverLive";
 import Attendant from "./routes/Attendant";
 import Profile from "./routes/Profile";
 import { ParentAlerts, ParentHistory, ParentHome } from "./routes/Parent";
@@ -68,6 +69,7 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   driver: [
     { to: "/driver", label: "Trip", icon: IconBus, end: true },
+    { to: "/driver/live", label: "Live", icon: IconMap },
     { to: "/driver/history", label: "History", icon: IconClock },
     { to: "/driver/profile", label: "Profile", icon: IconUser },
   ],
@@ -149,6 +151,7 @@ export default function App() {
 
       {/* On the bus */}
       <Route path="/driver" element={guard("driver", <DriverToday />)} />
+      <Route path="/driver/live" element={guard("driver", <DriverLive />)} />
       <Route path="/driver/history" element={guard("driver", <DriverHistory />)} />
       <Route path="/driver/profile" element={guard("driver", <Profile />)} />
       <Route path="/attendant" element={guard("staff", <Attendant />)} />

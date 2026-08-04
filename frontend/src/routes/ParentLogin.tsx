@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { api, useAction } from "../lib/api";
 import { HOME, useAuth, type Session } from "../lib/auth";
 import { Alert, Button, Field } from "../components/ui";
+import { normaliseCode, normaliseOtp, normalisePhone } from "../lib/input";
 import { AuthLayout } from "./Login";
 
 /**
@@ -67,7 +68,7 @@ export default function ParentLogin() {
               label="School code"
               placeholder="ABC123"
               value={schoolCode}
-              onChange={(e) => setSchoolCode(e.target.value.toUpperCase().slice(0, 6))}
+              onChange={(e) => setSchoolCode(normaliseCode(e.target.value))}
               className="[&_input]:tracking-[0.3em] [&_input]:font-semibold [&_input]:uppercase"
               required
               autoFocus
@@ -77,10 +78,17 @@ export default function ParentLogin() {
               inputMode="numeric"
               placeholder="The number registered with school"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              onChange={(e) => setPhone(normalisePhone(e.target.value))}
+              hint="10 digits — +91 and spaces are fine"
               required
             />
-            <Button type="submit" size="lg" block loading={busy}>
+            <Button
+              type="submit"
+              size="lg"
+              block
+              loading={busy}
+              disabled={schoolCode.length < 6 || phone.length < 10}
+            >
               Send OTP
             </Button>
           </form>
@@ -98,7 +106,7 @@ export default function ParentLogin() {
               label="6-digit OTP"
               inputMode="numeric"
               value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) => setOtp(normaliseOtp(e.target.value))}
               className="[&_input]:text-center [&_input]:text-lg [&_input]:tracking-[0.5em] [&_input]:font-bold"
               required
               autoFocus

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, useAction } from "../lib/api";
 import { Alert, Button, Field } from "../components/ui";
+import { normaliseOtp, normalisePhone } from "../lib/input";
 import { AuthLayout } from "./Login";
 
 /** Staff password reset. Parents sign in with an OTP anyway, so they never need this. */
@@ -69,7 +70,7 @@ export default function ForgotPassword() {
               label="Mobile number"
               inputMode="numeric"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              onChange={(e) => setPhone(normalisePhone(e.target.value))}
               required
               autoFocus
             />
@@ -88,7 +89,7 @@ export default function ForgotPassword() {
               label="6-digit code"
               inputMode="numeric"
               value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) => setOtp(normaliseOtp(e.target.value))}
               className="[&_input]:text-center [&_input]:tracking-[0.4em] [&_input]:font-bold"
               required
               autoFocus
