@@ -1,3 +1,6 @@
-
-# Uploaded files live on disk, not in git.
-uploads/
+# Uploaded files live on the server's disk, not in git.
+#
+# The leading slash matters. A bare "uploads/" matches a directory of that name
+# at ANY depth, which also excluded the source module at src/modules/uploads/ —
+# the build then failed on the server with "Cannot find module".
+/uploads/

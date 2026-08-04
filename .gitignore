@@ -12,7 +12,8 @@ build/
 .env.*.local
 
 # Uploaded files live on the server's disk, not in the repo.
-backend/uploads/
+# Anchored — an unanchored pattern would also match src/modules/uploads/.
+/backend/uploads/
 
 # Logs and runtime
 *.log
