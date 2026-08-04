@@ -46,6 +46,32 @@ type AuthValue = {
 const AuthContext = createContext<AuthValue>(null!);
 export const useAuth = () => useContext(AuthContext);
 
+/**
+ * A school's own colour, across every screen.
+ *
+ * The palette is one hue in eight shades, so the school picks the mid tone and
+ * the rest is mixed off it — asking an office to choose eight hex codes is how
+ * you end up with eight unrelated colours.
+ */
+const SHADES: [string, number][] = [
+  ["50", 92], ["100", 82], ["200", 62], ["400", 25],
+  ["500", 12], ["600", 0], ["700", -18], ["900", -48],
+];
+
+/** The schema default, which means "this school never chose a colour". */
+const UNSET_THEME = "#1d4ed8";
+
+function applyTheme(theme?: string | null) {
+  const colour = theme && theme.toLowerCase() !== UNSET_THEME ? theme : null;
+  const root = document.documentElement.style;
+  for (const [shade, mix] of SHADES) {
+    const name = `--color-brand-${shade}`;
+    if (!colour) root.removeProperty(name); // back to the BalVahini blue
+    else if (mix === 0) root.setProperty(name, colour);
+    else root.setProperty(name, `color-mix(in srgb, ${colour}, ${mix > 0 ? "white" : "black"} ${Math.abs(mix)}%)`);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [school, setSchool] = useState<School | null>(null);
@@ -54,8 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const apply = useCallback((nextUser: User | null, nextSchool: School | null) => {
     setUser(nextUser);
     setSchool(nextSchool);
-    // One CSS variable carries the school's own colour across every screen.
-    document.documentElement.style.setProperty("--brand", nextSchool?.themeColor ?? "");
+    applyTheme(nextSchool?.themeColor);
     document.title = nextSchool?.appName
       ? `${nextSchool.appName} — BalVahini`
       : "BalVahini — Safe Journeys, Brighter Futures";
