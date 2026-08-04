@@ -47,6 +47,8 @@ const schoolSchema = new Schema(
       trackingIntervalSec: { type: Number, default: 10, min: 5, max: 60 },
       /** Distance at which the "bus approaching your stop" alert fires. */
       approachingRadiusMeters: { type: Number, default: 800, min: 200, max: 5000 },
+      /** Require the driver to photograph themselves before a trip can start. */
+      requireDriverSelfie: { type: Boolean, default: true },
     },
   },
   { timestamps: true }

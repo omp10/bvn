@@ -136,6 +136,20 @@ export function SchoolLive() {
           return (
             <Card key={trip._id} title={trip.vehicleId?.busNumber ?? "Bus"} subtitle={trip.routeId?.name}
               actions={<Badge value={trip.gpsStale ? "pending" : "running"}>{trip.gpsStale ? "GPS stale" : "live"}</Badge>}>
+              {trip.startSelfieUrl && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg bg-slate-50 p-2.5">
+                  <img
+                    src={trip.startSelfieUrl}
+                    alt={`Check-in photo — ${trip.driverId?.name ?? "driver"}`}
+                    className="h-14 w-14 rounded-lg object-cover"
+                  />
+                  <div className="text-xs">
+                    <div className="font-semibold text-slate-700">Driver checked in</div>
+                    <div className="text-slate-500">{time(trip.selfieAt ?? trip.startedAt)}</div>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-4 grid grid-cols-2 gap-3 text-sm">
                 <Detail label="Driver" value={trip.driverId?.name ?? "—"} />
                 <Detail label="Started" value={time(trip.startedAt)} />

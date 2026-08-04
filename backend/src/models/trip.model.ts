@@ -43,6 +43,14 @@ const tripSchema = new Schema(
     startedAt: { type: Date, default: Date.now },
     endedAt: Date,
 
+    /**
+     * Photo the driver takes when going on duty. Proves who is actually behind
+     * the wheel — the licence on file says who *should* be driving, this says
+     * who did. Stored per trip, never overwritten.
+     */
+    startSelfieUrl: String,
+    selfieAt: Date,
+
     /** Denormalised so the live map does not join the positions collection. */
     lastPosition: {
       lat: Number,

@@ -9,6 +9,7 @@ import { Position } from "../../models/position.model.js";
 import { Student } from "../../models/student.model.js";
 import { Trip } from "../../models/trip.model.js";
 import { Vehicle } from "../../models/vehicle.model.js";
+import { School } from "../../models/school.model.js";
 import { endTrip, recordPositions, startTrip, todayKey } from "./trip.service.js";
 import { getLivePositions } from "../../lib/redis.js";
 
@@ -30,16 +31,27 @@ driverRouter.get(
       Trip.findOne({ vehicleId: vehicle._id, status: "running" }),
     ]);
 
-    res.json({ vehicle, studentCount: students, activeTrip });
+    const school = await School.findById(requireContext().schoolId).select("settings").lean();
+    res.json({
+      vehicle,
+      studentCount: students,
+      activeTrip,
+      requireSelfie: school?.settings?.requireDriverSelfie !== false,
+    });
   })
 );
 
 driverRouter.post(
   "/trips/start",
-  validate({ body: z.object({ type: z.enum(["morning", "evening"]) }) }),
+  validate({
+    body: z.object({
+      type: z.enum(["morning", "evening"]),
+      selfieUrl: z.string().optional(),
+    }),
+  }),
   handler(async (req, res) => {
     const ctx = requireContext();
-    const { trip, created } = await startTrip(ctx.userId, req.body.type, ctx.schoolId!);
+    const { trip, created } = await startTrip(ctx.userId, req.body.type, ctx.schoolId!, req.body.selfieUrl);
     // 200 rather than 201 on the retry, so the app can tell the two apart if it
     // cares — but either way it gets a usable trip.
     res.status(created ? 201 : 200).json(trip);

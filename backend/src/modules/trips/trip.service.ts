@@ -24,10 +24,20 @@ type TripType = "morning" | "evening";
  * trip that already exists. Without this, attendance, notifications and reports
  * quietly fork across two trip documents for the same journey.
  */
-export async function startTrip(driverId: string, type: TripType, schoolId: string) {
+export async function startTrip(driverId: string, type: TripType, schoolId: string, selfieUrl?: string) {
   const vehicle = await Vehicle.findOne({ driverId });
   if (!vehicle) throw badRequest("no bus is assigned to you");
   if (vehicle.status === "maintenance") throw badRequest("this bus is marked under maintenance");
+
+  // Checked before the trip exists, so a refused start leaves nothing behind.
+  const school = await School.findById(schoolId).select("settings").lean();
+  if (school?.settings?.requireDriverSelfie !== false && !selfieUrl) {
+    throw badRequest("take your check-in photo before starting the trip");
+  }
+  // Only ever our own uploaded path — never an arbitrary URL from the client.
+  if (selfieUrl && !/^\/uploads\/photos\/[\w.-]+$/.test(selfieUrl)) {
+    throw badRequest("invalid check-in photo");
+  }
 
   const key = { vehicleId: vehicle._id, tripDate: todayKey(), type };
 
@@ -39,6 +49,8 @@ export async function startTrip(driverId: string, type: TripType, schoolId: stri
       routeId: vehicle.routeId,
       status: "running",
       startedAt: new Date(),
+      startSelfieUrl: selfieUrl,
+      selfieAt: selfieUrl ? new Date() : undefined,
       timeline: [{ event: "trip_started", at: new Date() }],
     });
 

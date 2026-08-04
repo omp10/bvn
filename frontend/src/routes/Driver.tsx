@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { api, useAction, useQuery } from "../lib/api";
+import { useRef, useState } from "react";
+import { api, uploadFile, useAction, useQuery } from "../lib/api";
 import { useTripTracker, clearBuffer } from "../lib/tracker";
 import { ago, date, time, titleCase } from "../lib/format";
 import {
   Alert, Badge, Button, Card, EmptyState, Loading, Modal, Select, Table,
 } from "../components/ui";
-import { IconAlert, IconBus, IconCheck, IconClock, IconPin, IconUsers } from "../components/icons";
+import { IconAlert, IconBus, IconCamera, IconCheck, IconClock, IconPin, IconUsers } from "../components/icons";
 import BusMap from "../components/BusMap";
 
 /**
@@ -27,9 +27,17 @@ export function DriverToday() {
   // it ends — no trip, no tracking.
   const gps = useTripTracker(trip?._id ?? null);
 
+  // Check-in photo, taken before going on duty.
+  const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+  const requireSelfie = data?.requireSelfie !== false;
+
   const startTrip = (type: "morning" | "evening") =>
     // Safe to press twice: the server returns the same trip on a retry.
-    void action.run(() => api("/driver/trips/start", { body: { type } }), reload);
+    void action.run(
+      () => api("/driver/trips/start", { body: { type, selfieUrl: selfieUrl ?? undefined } }),
+      () => { setSelfieUrl(null); setSelfiePreview(null); reload(); }
+    );
 
   return (
     <div className="space-y-4">
@@ -94,10 +102,26 @@ export function DriverToday() {
         </>
       ) : (
         <Card title="Start today's trip">
+          {requireSelfie && (
+            <SelfieCheckIn
+              preview={selfiePreview}
+              onCaptured={(url, preview) => { setSelfieUrl(url); setSelfiePreview(preview); }}
+              onClear={() => { setSelfieUrl(null); setSelfiePreview(null); }}
+            />
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
-            <Button size="lg" loading={action.busy} onClick={() => startTrip("morning")}>Morning trip</Button>
-            <Button size="lg" variant="success" loading={action.busy} onClick={() => startTrip("evening")}>Evening trip</Button>
+            <Button size="lg" loading={action.busy} disabled={requireSelfie && !selfieUrl}
+              onClick={() => startTrip("morning")}>Morning trip</Button>
+            <Button size="lg" variant="success" loading={action.busy} disabled={requireSelfie && !selfieUrl}
+              onClick={() => startTrip("evening")}>Evening trip</Button>
           </div>
+
+          {requireSelfie && !selfieUrl && (
+            <p className="mt-3 text-center text-sm text-slate-500">
+              Take your photo above to enable the trip buttons.
+            </p>
+          )}
           {!data?.vehicle?.routeId && (
             <p className="mt-3 text-sm text-amber-600">
               No route is set for this bus — parents will not see stop-by-stop progress.
@@ -131,6 +155,89 @@ export function DriverToday() {
       </p>
 
       <EmergencyModal open={sos} onClose={() => setSos(false)} tripId={trip?._id} />
+    </div>
+  );
+}
+
+/**
+ * Driver check-in photo.
+ *
+ * A file input with capture="user" rather than getUserMedia: it opens the front
+ * camera directly on Android and iOS, needs no permission dance, and — unlike a
+ * live video stream — works inside a Flutter WebView without extra plumbing.
+ */
+function SelfieCheckIn({
+  preview, onCaptured, onClear,
+}: {
+  preview: string | null;
+  onCaptured: (url: string, preview: string) => void;
+  onClear: () => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pick = async (file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await uploadFile<{ url: string }>("/uploads/photos", file);
+      // Local preview so the driver sees the shot instantly, before any fetch.
+      onCaptured(url, URL.createObjectURL(file));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+      // Reset, so retaking the same file still fires onChange.
+      if (input.current) input.current.value = "";
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <Alert>{error}</Alert>
+
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={(e) => void pick(e.target.files?.[0])}
+      />
+
+      {preview ? (
+        <div className="flex items-center gap-3 rounded-lg border border-leaf-400 bg-leaf-50/50 p-3">
+          <img src={preview} alt="Your check-in photo" className="h-16 w-16 rounded-lg object-cover" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 font-semibold text-leaf-700">
+              <IconCheck className="h-4 w-4" /> Photo taken
+            </div>
+            <p className="text-xs text-slate-500">Sent with your trip so the office knows who is driving.</p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => { onClear(); input.current?.click(); }}>
+            Retake
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => input.current?.click()}
+          className="flex w-full items-center gap-3 rounded-lg border-2 border-dashed border-slate-300 p-4 text-left transition hover:border-brand-500 hover:bg-brand-50/40 disabled:opacity-60"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
+            <IconCamera className="h-6 w-6" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-slate-800">
+              {busy ? "Uploading…" : "Take your check-in photo"}
+            </span>
+            <span className="block text-xs text-slate-500">Required before you can start the trip</span>
+          </span>
+        </button>
+      )}
     </div>
   );
 }
