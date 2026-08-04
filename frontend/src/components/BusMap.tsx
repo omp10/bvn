@@ -32,7 +32,29 @@ const pin = (fill: string, glyph: string) =>
     iconAnchor: [0, 0],
   });
 
-const busIcon = pin("#1155a5", "B");
+/**
+ * The bus gets an actual bus, not a lettered pin — on a map full of stop
+ * markers the parent needs to find their child's bus at a glance.
+ */
+const busIcon = L.divIcon({
+  className: "",
+  html: `<div style="transform:translate(-50%,-50%)">
+    <svg width="46" height="46" viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="23" cy="23" r="19" fill="#1155a5" stroke="#fff" stroke-width="3"/>
+      <circle cx="23" cy="23" r="21.5" fill="none" stroke="#1155a5" stroke-width="1.5" opacity=".35">
+        <animate attributeName="r" values="20;25;20" dur="2.4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values=".45;0;.45" dur="2.4s" repeatCount="indefinite"/>
+      </circle>
+      <rect x="14" y="12.5" width="18" height="19" rx="3.4" fill="#fdc010"/>
+      <rect x="16.2" y="15.4" width="13.6" height="6.6" rx="1.6" fill="#0d4381"/>
+      <rect x="16.2" y="24.4" width="4" height="2.6" rx="1" fill="#0d4381"/>
+      <rect x="25.8" y="24.4" width="4" height="2.6" rx="1" fill="#0d4381"/>
+      <circle cx="18.2" cy="31.6" r="2.1" fill="#0f172a"/>
+      <circle cx="27.8" cy="31.6" r="2.1" fill="#0f172a"/>
+    </svg></div>`,
+  iconSize: [46, 46],
+  iconAnchor: [0, 0],
+});
 const stopIcon = (n: number) => pin("#45ab35", String(n));
 const myStopIcon = pin("#f0ac00", "★");
 

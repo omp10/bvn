@@ -13,24 +13,26 @@ import BusMap from "../components/BusMap";
  * length in a parked bus.
  */
 export function DriverToday() {
+  // Every hook runs before any early return. React matches hooks by call order,
+  // so a `return` above one of them means the first render registers fewer
+  // hooks than the next — which is React error #310, not a subtle bug.
   const { data, loading, error, reload } = useQuery<any>("/driver/my-bus");
   const action = useAction();
   const [sos, setSos] = useState(false);
 
-  if (loading && !data) return <Loading />;
-  if (error) return <Card><EmptyState title="Nothing assigned yet" hint={error} /></Card>;
-
-  const trip = data?.activeTrip;
-  const route = data?.vehicle?.routeId;
-
-  // Streams the position for as long as a trip is running, and stops the moment
-  // it ends — no trip, no tracking.
-  const gps = useTripTracker(trip?._id ?? null);
-
   // Check-in photo, taken before going on duty.
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+
+  const trip = data?.activeTrip;
+  const route = data?.vehicle?.routeId;
   const requireSelfie = data?.requireSelfie !== false;
+
+  // Streams the position while a trip is running, and stops the moment it ends.
+  const gps = useTripTracker(trip?._id ?? null);
+
+  if (loading && !data) return <Loading />;
+  if (error) return <Card><EmptyState title="Nothing assigned yet" hint={error} /></Card>;
 
   const startTrip = (type: "morning" | "evening") =>
     // Safe to press twice: the server returns the same trip on a retry.

@@ -3,7 +3,6 @@ import { NavLink } from "react-router-dom";
 import { useAuth, ROLE_LABEL } from "../lib/auth";
 import { LogoMark } from "./Logo";
 import { cx } from "./ui";
-import { IconLogout } from "./icons";
 import type { NavItem } from "./DeskShell";
 
 /**
@@ -12,7 +11,7 @@ import type { NavItem } from "./DeskShell";
  * and nothing that needs a mouse.
  */
 export default function PhoneShell({ nav, children }: { nav: NavItem[]; children: ReactNode }) {
-  const { user, school, signOut } = useAuth();
+  const { user, school } = useAuth();
   if (!user) return null;
 
   return (
@@ -26,9 +25,9 @@ export default function PhoneShell({ nav, children }: { nav: NavItem[]; children
               {user.name} · {ROLE_LABEL[user.role]}
             </div>
           </div>
-          <button onClick={signOut} aria-label="Sign out" className="rounded-lg p-2 hover:bg-white/10">
-            <IconLogout />
-          </button>
+          {/* No sign-out here on purpose: this is exactly where a thumb lands
+              on a moving bus, and a driver logging out mid-trip takes the bus
+              off the school's live map. It lives under Profile. */}
         </div>
       </header>
 

@@ -7,7 +7,7 @@ import { Loading } from "./components/ui";
 import {
   IconAlert, IconBell, IconBus, IconChart, IconClock, IconHome, IconMap,
   IconCheck, IconPin, IconPlus, IconRoute, IconSchool, IconShield, IconStudent,
-  IconUsers, IconWallet,
+  IconUser, IconUsers, IconWallet,
 } from "./components/icons";
 
 import Login from "./routes/Login";
@@ -28,6 +28,7 @@ import { SchoolAlerts, SchoolReports, SchoolRequests, SchoolRoutes } from "./rou
 import { FleetDashboard, FleetDrivers, FleetVehicles } from "./routes/fleet/Fleet";
 import { DriverHistory, DriverToday } from "./routes/Driver";
 import Attendant from "./routes/Attendant";
+import Profile from "./routes/Profile";
 import { ParentAlerts, ParentHistory, ParentHome } from "./routes/Parent";
 
 /* Each role owns its own URL space, so a link is always unambiguous about who
@@ -68,12 +69,17 @@ const NAV: Record<Role, NavItem[]> = {
   driver: [
     { to: "/driver", label: "Trip", icon: IconBus, end: true },
     { to: "/driver/history", label: "History", icon: IconClock },
+    { to: "/driver/profile", label: "Profile", icon: IconUser },
   ],
-  staff: [{ to: "/attendant", label: "Attendance", icon: IconUsers, end: true }],
+  staff: [
+    { to: "/attendant", label: "Attendance", icon: IconUsers, end: true },
+    { to: "/attendant/profile", label: "Profile", icon: IconUser },
+  ],
   parent: [
     { to: "/parent", label: "Track", icon: IconPin, end: true },
     { to: "/parent/history", label: "History", icon: IconClock },
     { to: "/parent/alerts", label: "Alerts", icon: IconBell },
+    { to: "/parent/profile", label: "Profile", icon: IconUser },
   ],
 };
 
@@ -144,12 +150,15 @@ export default function App() {
       {/* On the bus */}
       <Route path="/driver" element={guard("driver", <DriverToday />)} />
       <Route path="/driver/history" element={guard("driver", <DriverHistory />)} />
+      <Route path="/driver/profile" element={guard("driver", <Profile />)} />
       <Route path="/attendant" element={guard("staff", <Attendant />)} />
+      <Route path="/attendant/profile" element={guard("staff", <Profile />)} />
 
       {/* At home */}
       <Route path="/parent" element={guard("parent", <ParentHome />)} />
       <Route path="/parent/history" element={guard("parent", <ParentHistory />)} />
       <Route path="/parent/alerts" element={guard("parent", <ParentAlerts />)} />
+      <Route path="/parent/profile" element={guard("parent", <Profile />)} />
 
       <Route
         path="*"
