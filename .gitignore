@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Secrets — never commit these. .env.example is the template that is committed.
+.env
+.env.local
+.env.*.local
+
+# Uploaded files live on the server's disk, not in the repo.
+backend/uploads/
+
+# Logs and runtime
+*.log
+npm-debug.log*
+.pm2/
+
+# Tooling caches
+.vite/
+.cache/
+coverage/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/*
+ * Palette lifted from the BalVahini mark: the blue and green hands that form
+ * the shield, and the sun behind the bus.
+ */
+@theme {
+  --color-brand-50: #eef5fd;
+  --color-brand-100: #d6e6f9;
+  --color-brand-200: #aecdf2;
+  --color-brand-400: #3d86d4;
+  --color-brand-500: #1e6cc4;
+  --color-brand-600: #1155a5;
+  --color-brand-700: #0d4381;
+  --color-brand-900: #082a52;
+
+  --color-leaf-50: #eff9ec;
+  --color-leaf-100: #dcf2d5;
+  --color-leaf-400: #63bf4f;
+  --color-leaf-500: #45ab35;
+  --color-leaf-600: #368a29;
+  --color-leaf-700: #2a6d20;
+
+  --color-sun-100: #fff2cc;
+  --color-sun-400: #fdc010;
+  --color-sun-500: #f0ac00;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 0.875rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-slate-50 font-sans text-slate-900 antialiased;
+  }
+  /* Never let a focus ring disappear — keyboard users need to see where they are. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}
+
+@layer utilities {
+  /* The shield gradient from the logo, used for headers and the auth panel. */
+  .bg-shield {
+    background-image: linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 45%, var(--color-leaf-600) 100%);
+  }
+  .safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(69 171 53 / 0.5); }
+  70% { box-shadow: 0 0 0 12px rgb(69 171 53 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(69 171 53 / 0); }
+}
+.live-dot {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
