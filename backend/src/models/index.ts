@@ -14,5 +14,7 @@ export { Emergency, EMERGENCY_TYPES, EMERGENCY_STATUSES } from "./emergency.mode
 export { Notification, NOTIFICATION_TYPES } from "./notification.model.js";
 export { AuditLog } from "./auditLog.model.js";
 export { Role } from "./role.model.js";
+export { Registration, REGISTRATION_TYPES, REGISTRATION_STATUSES } from "./registration.model.js";
+export { DriverRequest, DRIVER_REQUEST_STATUSES } from "./driverRequest.model.js";
 export { Salary, SALARY_STATUSES } from "./salary.model.js";
 export { allSchools, allSchoolsAggregate, tenantField, tenantPlugin } from "./plugins/tenant.js";

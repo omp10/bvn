@@ -82,12 +82,20 @@ export default function Login() {
   return (
     <AuthLayout
       footer={
-        <p className="mt-8 text-center text-sm text-slate-500">
-          Are you a parent?{" "}
-          <Link to="/parent/login" className="font-semibold text-brand-600 hover:underline">
-            Sign in with your school code
-          </Link>
-        </p>
+        <>
+          <p className="mt-8 text-center text-sm text-slate-500">
+            Are you a parent?{" "}
+            <Link to="/parent/login" className="font-semibold text-brand-600 hover:underline">
+              Sign in with your school code
+            </Link>
+          </p>
+          <p className="mt-3 border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
+            New here?{" "}
+            <Link to="/register" className="font-semibold text-brand-600 hover:underline">
+              Register your school, fleet or yourself as a driver
+            </Link>
+          </p>
+        </>
       }
     >
       <h2 className="text-2xl font-bold">Welcome back</h2>

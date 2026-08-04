@@ -35,6 +35,11 @@ import { uploadRouter } from "./modules/uploads/upload.routes.js";
 import { salaryRouter } from "./modules/salaries/salary.routes.js";
 import { ownerAdminRouter } from "./modules/owners/ownerAdmin.routes.js";
 import { activityRouter, roleRouter } from "./modules/roles/role.routes.js";
+import { registerRouter, registrationAdminRouter } from "./modules/registrations/registration.routes.js";
+import {
+  adminDriverRequestRouter,
+  schoolDriverRequestRouter,
+} from "./modules/driverRequests/driverRequest.routes.js";
 
 export function createApp() {
   const app = express();
@@ -76,6 +81,8 @@ export function createApp() {
 
   /* ── Shared ─────────────────────────────────────────────────────── */
   app.use("/api/auth", authRouter);
+  // Public: schools, fleet owners and drivers apply to join.
+  app.use("/api/register", registerRouter);
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/notifications", notificationRouter);
   app.use("/api/announcements", announcementRouter);
@@ -88,6 +95,8 @@ export function createApp() {
   app.use("/api/super-admin/vehicle-requests", adminVehicleRequestRouter);
   app.use("/api/super-admin/reports", platformReportRouter);
   app.use("/api/super-admin/owners", ownerAdminRouter);
+  app.use("/api/super-admin/registrations", registrationAdminRouter);
+  app.use("/api/super-admin/driver-requests", adminDriverRequestRouter);
 
   /* ── School admin: one school's transport operation ─────────────── */
   app.use("/api/school/buses", fleetRouter);
@@ -96,6 +105,7 @@ export function createApp() {
   app.use("/api/school/routes", routeRouter);
   app.use("/api/school/trips", tripRouter);
   app.use("/api/school/vehicle-requests", schoolVehicleRequestRouter);
+  app.use("/api/school/driver-requests", schoolDriverRequestRouter);
   app.use("/api/school/route-changes", routeChangeRouter);
   app.use("/api/school/emergencies", emergencyAdminRouter);
   app.use("/api/school/billing", schoolBillingRouter);

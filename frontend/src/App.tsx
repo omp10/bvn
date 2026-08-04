@@ -6,19 +6,23 @@ import PhoneShell from "./components/PhoneShell";
 import { Loading } from "./components/ui";
 import {
   IconAlert, IconBell, IconBus, IconChart, IconClock, IconHome, IconMap,
-  IconPin, IconRoute, IconSchool, IconShield, IconStudent, IconUsers, IconWallet,
+  IconCheck, IconPin, IconPlus, IconRoute, IconSchool, IconShield, IconStudent,
+  IconUsers, IconWallet,
 } from "./components/icons";
 
 import Login from "./routes/Login";
 import ParentLogin from "./routes/ParentLogin";
 import ForgotPassword from "./routes/ForgotPassword";
+import Register, { RegistrationStatus } from "./routes/Register";
 import { AdminDashboard, AdminSchoolDetail, AdminSchools } from "./routes/admin/Admin";
 import { AdminBilling, AdminReports, AdminVehicleRequests } from "./routes/admin/Billing";
 import AdminOwners from "./routes/admin/Owners";
+import AdminRegistrations, { AdminDriverRequests } from "./routes/admin/Registrations";
 import { SchoolDashboard, SchoolLive } from "./routes/school/School";
 import { SchoolBuses, SchoolPeople } from "./routes/school/Fleet";
 import { SchoolStudents } from "./routes/school/Students";
 import SchoolSalaries from "./routes/school/Salaries";
+import SchoolStaffing from "./routes/school/Staffing";
 import { SchoolActivity, SchoolRoles } from "./routes/school/Roles";
 import { SchoolAlerts, SchoolReports, SchoolRequests, SchoolRoutes } from "./routes/school/Ops";
 import { FleetDashboard, FleetDrivers, FleetVehicles } from "./routes/fleet/Fleet";
@@ -34,8 +38,10 @@ const NAV: Record<Role, NavItem[]> = {
     { to: "/admin", label: "Overview", icon: IconHome, end: true },
     { to: "/admin/schools", label: "Schools", icon: IconSchool },
     { to: "/admin/billing", label: "Subscriptions", icon: IconWallet },
+    { to: "/admin/registrations", label: "Registrations", icon: IconCheck },
     { to: "/admin/owners", label: "Fleet owners", icon: IconUsers },
-    { to: "/admin/requests", label: "Vehicle requests", icon: IconBus },
+    { to: "/admin/requests", label: "Bus requests", icon: IconBus },
+    { to: "/admin/driver-requests", label: "Driver requests", icon: IconUsers },
     { to: "/admin/reports", label: "Reports", icon: IconChart },
   ],
   school_admin: [
@@ -46,6 +52,7 @@ const NAV: Record<Role, NavItem[]> = {
     { to: "/school/attendants", label: "Attendants", icon: IconUsers },
     { to: "/school/routes", label: "Routes & stops", icon: IconRoute },
     { to: "/school/students", label: "Students", icon: IconStudent },
+    { to: "/school/staffing", label: "Request buses/drivers", icon: IconPlus },
     { to: "/school/requests", label: "Route requests", icon: IconClock },
     { to: "/school/alerts", label: "Alerts", icon: IconAlert },
     { to: "/school/salaries", label: "Salaries", icon: IconWallet },
@@ -96,6 +103,9 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/parent/login" element={<ParentLogin />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      {/* Public: schools, fleet owners and drivers apply to join. */}
+      <Route path="/register" element={<Register />} />
+      <Route path="/register/status" element={<RegistrationStatus />} />
       {/* Parents arriving from a QR code or invitation link. */}
       <Route path="/join/:code" element={<ParentLogin />} />
 
@@ -104,6 +114,8 @@ export default function App() {
       <Route path="/admin/schools" element={guard("super_admin", <AdminSchools />)} />
       <Route path="/admin/schools/:id" element={guard("super_admin", <AdminSchoolDetail />)} />
       <Route path="/admin/billing" element={guard("super_admin", <AdminBilling />)} />
+      <Route path="/admin/registrations" element={guard("super_admin", <AdminRegistrations />)} />
+      <Route path="/admin/driver-requests" element={guard("super_admin", <AdminDriverRequests />)} />
       <Route path="/admin/owners" element={guard("super_admin", <AdminOwners />)} />
       <Route path="/admin/requests" element={guard("super_admin", <AdminVehicleRequests />)} />
       <Route path="/admin/reports" element={guard("super_admin", <AdminReports />)} />
@@ -116,6 +128,7 @@ export default function App() {
       <Route path="/school/attendants" element={guard("school_admin", <SchoolPeople kind="attendants" />)} />
       <Route path="/school/routes" element={guard("school_admin", <SchoolRoutes />)} />
       <Route path="/school/students" element={guard("school_admin", <SchoolStudents />)} />
+      <Route path="/school/staffing" element={guard("school_admin", <SchoolStaffing />)} />
       <Route path="/school/requests" element={guard("school_admin", <SchoolRequests />)} />
       <Route path="/school/alerts" element={guard("school_admin", <SchoolAlerts />)} />
       <Route path="/school/salaries" element={guard("school_admin", <SchoolSalaries />)} />
