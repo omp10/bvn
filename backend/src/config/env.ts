@@ -31,6 +31,15 @@ export const env = {
   appUrl: (process.env.APP_URL ?? "http://localhost:5174").replace(/[/]$/, ""),
 
   devOtp: process.env.DEV_OTP ?? "123456",
+  /**
+   * Returns a fixed OTP in the response instead of sending an SMS.
+   *
+   * Automatic outside production. In production it must be switched on
+   * deliberately, because it lets anyone who knows a parent's mobile number
+   * sign in as them. It exists so the platform is demonstrable before an SMS
+   * gateway is connected — turn it off the day one is.
+   */
+  otpDevMode: process.env.OTP_DEV_MODE === "true" || process.env.NODE_ENV !== "production",
   otpTtlSeconds: Number(process.env.OTP_TTL_SECONDS ?? 300),
 };
 

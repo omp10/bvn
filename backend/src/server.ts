@@ -51,6 +51,15 @@ const server = createServer(app);
 initRealtime(server);
 startScheduler();
 
+if (env.isProd && env.otpDevMode) {
+  console.warn(
+    "[security] OTP_DEV_MODE is on in production: every OTP is " +
+      env.devOtp +
+      " and is returned in the response. Anyone who knows a parent's mobile " +
+      "number can sign in as them. Turn this off once an SMS gateway is live."
+  );
+}
+
 server.listen(env.port, () => {
   console.log(`BalVahini API listening on http://localhost:${env.port} (${env.nodeEnv})`);
 });

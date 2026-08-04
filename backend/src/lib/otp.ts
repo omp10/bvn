@@ -18,8 +18,9 @@ const MAX_ATTEMPTS = 5;
 const key = (schoolCode: string, phone: string) => `otp:${schoolCode}:${phone}`;
 
 export async function issueOtp(schoolCode: string, phone: string): Promise<{ code: string; devCode?: string }> {
-  // Deterministic in development so nobody needs an SMS gateway to sign in.
-  const code = env.isProd ? randomOtp() : env.devOtp;
+  // A fixed, returned code while no SMS gateway exists; a real random one the
+  // moment OTP_DEV_MODE is off.
+  const code = env.otpDevMode ? env.devOtp : randomOtp();
   const k = key(schoolCode, phone);
 
   const r = redis();
@@ -30,7 +31,7 @@ export async function issueOtp(schoolCode: string, phone: string): Promise<{ cod
     memory.set(k, { code, expiresAt: Date.now() + env.otpTtlSeconds * 1000, attempts: 0 });
   }
 
-  return { code, devCode: env.isProd ? undefined : code };
+  return { code, devCode: env.otpDevMode ? code : undefined };
 }
 
 export async function verifyOtp(schoolCode: string, phone: string, code: string): Promise<void> {
