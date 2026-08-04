@@ -1,7 +1,10 @@
 # BalVahini — live access reference
 
-**https://balvahini.com** · also `www.balvahini.com` and `bvn.balvahini.com`
+**App → https://bvn.balvahini.com**
+**Public site → https://balvahini.com** and `www` (Coming Soon page)
+
 HTTP redirects to HTTPS. Certificate valid to 2 Nov 2026, auto-renewing.
+Database: **MongoDB Atlas** (`Cluster0`, database `balvahini`).
 
 > These are seeded demo accounts with public passwords, in a public repo.
 > **Change or delete them before any real school uses this.**
@@ -20,23 +23,23 @@ Parents sign in at **`/parent/login`** with a school code + OTP `123456`.
 | Super admin | `9000000001` | `admin123` | `/admin` |
 | Fleet owner | `9000000002` | `owner123` | `/fleet` |
 
-### Sunrise Public School — code `UV3QUE`
+### Sunrise Public School — code `4UHYYE`
 
 | Role | Mobile | Password | Lands on |
 |---|---|---|---|
 | School admin | `9111100001` | `school123` | `/school` |
 | Driver — Ramesh Patil | `9111100002` | `driver123` | `/driver` |
 | Attendant — Sunita Kale | `9111100003` | `staff123` | `/attendant` |
-| Parent — Anil Deshmukh | `9111100004` | OTP `123456` | `/parent` |
+| Parent — Anil Deshmukh | `9111100004` | code `4UHYYE` + OTP `123456` | `/parent` |
 
-### Green Valley School — code `MEVEQQ`
+### Green Valley School — code `X7PPM2`
 
 | Role | Mobile | Password | Lands on |
 |---|---|---|---|
 | School admin | `9222200001` | `school123` | `/school` |
 | Driver — Suresh Jadhav | `9222200002` | `driver123` | `/driver` |
 | Attendant — Manda Shinde | `9222200003` | `staff123` | `/attendant` |
-| Parent — Vijay More | `9222200004` | OTP `123456` | `/parent` |
+| Parent — Vijay More | `9222200004` | code `X7PPM2` + OTP `123456` | `/parent` |
 
 Two schools exist deliberately: one school proves nothing about tenant
 isolation. Sign in as each school admin and confirm neither sees the other's
@@ -106,7 +109,7 @@ visiting another role's URL bounces you back to yours.
 | `/driver` | Assigned bus, start/end trip, **live GPS**, emergency | `9111100002 / driver123` | 20, 23 |
 | `/driver/history` | Trip history | | 20.6 |
 | `/attendant` | Roster, boarding and drop marking | `9111100003 / staff123` | 21 |
-| `/parent` | Live tracking, ETA, map, emergency contacts | `9111100004` + code `UV3QUE` | 17, 19 |
+| `/parent` | Live tracking, ETA, map, emergency contacts | `9111100004` + code `4UHYYE` | 17, 19 |
 | `/parent/history` | Pickup and drop history, last 7 days | | 21.7 |
 | `/parent/alerts` | Notifications | | 24 |
 
@@ -142,7 +145,11 @@ ssh root@200.141.11.186
 | Logs | `pm2 logs balvahini-api --lines 100` |
 | Restart | `pm2 restart balvahini-api --update-env` |
 | Nginx check | `nginx -t && systemctl reload nginx` |
-| Re-seed (**wipes data**) | `cd ~/balvahini/backend && npm run seed` |
+| Re-seed (**wipes Atlas data**) | `cd ~/balvahini/backend && npm run seed` |
+
+**The database is Atlas now, shared and remote.** `npm run seed` wipes the live
+data from wherever it is run — never point a local machine at the `balvahini`
+database. Use `balvahini_dev` on the same cluster for development.
 
 **This server also hosts `inride.co.in`.** Never remove
 `/etc/nginx/sites-enabled/default.conf`, never add `quic reuseport` or
