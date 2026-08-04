@@ -2,7 +2,7 @@ import { Router } from "express";
 import { audit } from "../../middleware/audit.js";
 import { authenticate, requireActiveSchool, requirePermission, requireRole } from "../../middleware/auth.js";
 import { badRequest, conflict, handler, isDuplicateKey, notFound } from "../../lib/errors.js";
-import { idParam, objectId, paginationQuery, phone, validate, z } from "../../lib/validate.js";
+import { idParam, like, objectId, paginationQuery, phone, validate, z } from "../../lib/validate.js";
 import { requireContext } from "../../lib/context.js";
 import { Student } from "../../models/student.model.js";
 import { TransportRoute } from "../../models/route.model.js";
@@ -41,7 +41,7 @@ studentRouter.get(
     if (q.section) filter.section = q.section;
     if (q.vehicleId) filter.vehicleId = q.vehicleId;
     if (q.routeId) filter.routeId = q.routeId;
-    if (q.q) filter.name = new RegExp(q.q, "i");
+    if (q.q) filter.name = like(q.q);
     // Students with no bus never appear in the parent app — this is the list the
     // office works through at the start of term.
     if (q.unassigned) filter.vehicleId = null;

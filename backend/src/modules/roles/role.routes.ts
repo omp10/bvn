@@ -4,7 +4,7 @@ import { authenticate, requireActiveSchool, requirePermission, requireRole } fro
 import { badRequest, conflict, handler, isDuplicateKey, notFound } from "../../lib/errors.js";
 import { hashPassword } from "../../lib/password.js";
 import { requireContext } from "../../lib/context.js";
-import { idParam, objectId, paginationQuery, password, phone, validate, z } from "../../lib/validate.js";
+import { escapeRegex, idParam, objectId, paginationQuery, password, phone, validate, z } from "../../lib/validate.js";
 import { ALL_PERMISSIONS, PERMISSION_MODULES, READ_ONLY_PRESET, expandPermissions } from "../../lib/permissions.js";
 import { AuditLog } from "../../models/auditLog.model.js";
 import { Role } from "../../models/role.model.js";
@@ -226,7 +226,7 @@ activityRouter.get(
   handler(async (req, res) => {
     const q = req.query as never as { page: number; limit: number; action?: string; actorId?: string };
     const filter: Record<string, unknown> = {};
-    if (q.action) filter.action = new RegExp("^" + q.action);
+    if (q.action) filter.action = new RegExp("^" + escapeRegex(q.action));
     if (q.actorId) filter.actorId = q.actorId;
 
     const [items, total] = await Promise.all([

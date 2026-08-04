@@ -3,7 +3,7 @@ import { audit } from "../../middleware/audit.js";
 import { authenticate, requireRole } from "../../middleware/auth.js";
 import { conflict, handler, notFound } from "../../lib/errors.js";
 import { hashPassword } from "../../lib/password.js";
-import { idParam, paginationQuery, password, phone, validate, z } from "../../lib/validate.js";
+import { idParam, like, paginationQuery, password, phone, validate, z } from "../../lib/validate.js";
 import { User, USER_STATUSES } from "../../models/user.model.js";
 import { Vehicle } from "../../models/vehicle.model.js";
 import { allSchools } from "../../models/plugins/tenant.js";
@@ -23,7 +23,7 @@ ownerAdminRouter.get(
   handler(async (req, res) => {
     const { page, limit, q } = req.query as never as { page: number; limit: number; q?: string };
     const filter: Record<string, unknown> = { role: "owner" };
-    if (q) filter.$or = [{ name: new RegExp(q, "i") }, { companyName: new RegExp(q, "i") }, { phone: new RegExp(q) }];
+    if (q) filter.$or = [{ name: like(q) }, { companyName: like(q) }, { phone: like(q) }];
 
     const [owners, total] = await Promise.all([
       allSchools(User.find(filter)).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),

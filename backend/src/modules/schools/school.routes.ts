@@ -5,7 +5,7 @@ import { conflict, handler, notFound } from "../../lib/errors.js";
 import QRCode from "qrcode";
 import { randomSchoolCode, randomToken } from "../../lib/codes.js";
 import { hashPassword } from "../../lib/password.js";
-import { idParam, paginationQuery, password, phone, validate, z } from "../../lib/validate.js";
+import { idParam, like, paginationQuery, password, phone, validate, z } from "../../lib/validate.js";
 import { env } from "../../config/env.js";
 import { School, SCHOOL_STATUSES } from "../../models/school.model.js";
 import { User } from "../../models/user.model.js";
@@ -54,7 +54,7 @@ schoolRouter.get(
 
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
-    if (q) filter.$or = [{ name: new RegExp(q, "i") }, { code: new RegExp(q, "i") }];
+    if (q) filter.$or = [{ name: like(q) }, { code: like(q) }];
 
     const [items, total] = await Promise.all([
       School.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),

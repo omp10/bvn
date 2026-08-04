@@ -37,4 +37,14 @@ export const paginationQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 
+/**
+ * A case-insensitive "contains" match on user input.
+ *
+ * Escaped, because a search box is a trust boundary: an unescaped "(" is a
+ * crash and ".*.*.*x" is a CPU pinned by whoever typed it.
+ */
+export const escapeRegex = (raw: string): string => raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+export const like = (raw: string): RegExp => new RegExp(escapeRegex(raw), "i");
+
 export { z };
