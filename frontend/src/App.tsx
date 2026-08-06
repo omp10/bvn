@@ -23,6 +23,7 @@ import { SchoolBuses, SchoolPeople } from "./routes/school/Fleet";
 import { SchoolStudents } from "./routes/school/Students";
 import SchoolSalaries from "./routes/school/Salaries";
 import SchoolStaffing from "./routes/school/Staffing";
+import SchoolTrips from "./routes/school/Trips";
 import { SchoolActivity, SchoolRoles } from "./routes/school/Roles";
 import { SchoolAlerts, SchoolReports, SchoolRequests, SchoolRoutes } from "./routes/school/Ops";
 import { FleetDashboard, FleetDrivers, FleetVehicles } from "./routes/fleet/Fleet";
@@ -49,6 +50,7 @@ const NAV: Record<Role, NavItem[]> = {
   school_admin: [
     { to: "/school", label: "Today", icon: IconHome, end: true },
     { to: "/school/live", label: "Live buses", icon: IconMap },
+    { to: "/school/trips", label: "Trips & check-ins", icon: IconClock },
     { to: "/school/buses", label: "Buses", icon: IconBus },
     { to: "/school/drivers", label: "Drivers", icon: IconUsers },
     { to: "/school/attendants", label: "Attendants", icon: IconUsers },
@@ -131,6 +133,7 @@ export default function App() {
       {/* School office */}
       <Route path="/school" element={guard("school_admin", <SchoolDashboard />)} />
       <Route path="/school/live" element={guard("school_admin", <SchoolLive />)} />
+      <Route path="/school/trips" element={guard("school_admin", <SchoolTrips />)} />
       <Route path="/school/buses" element={guard("school_admin", <SchoolBuses />)} />
       <Route path="/school/drivers" element={guard("school_admin", <SchoolPeople kind="drivers" />)} />
       <Route path="/school/attendants" element={guard("school_admin", <SchoolPeople kind="attendants" />)} />

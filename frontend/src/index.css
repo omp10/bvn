@@ -58,10 +58,10 @@
 
   /* The sidebar's own bar: thin, rounded, and translucent white so it reads as
      part of the gradient rather than a native control bolted onto it. */
-  .slim-scrollbar-light {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(255 255 255 / 0.3) transparent;
-  }
+  /* No `scrollbar-width` on purpose: Chromium ignores ::-webkit-scrollbar
+     sizing the moment that standard property is set, which pinned this to
+     Chrome's 10px "thin" instead of the 6px wanted. Firefox gets its own rule
+     below, since it has no webkit pseudo-elements. */
   .slim-scrollbar-light::-webkit-scrollbar { width: 6px; }
   .slim-scrollbar-light::-webkit-scrollbar-track { background: transparent; }
   .slim-scrollbar-light::-webkit-scrollbar-thumb {
@@ -69,6 +69,15 @@
     border-radius: 999px;
   }
   .slim-scrollbar-light::-webkit-scrollbar-thumb:hover { background-color: rgb(255 255 255 / 0.5); }
+
+  /* Firefox only — it has no ::-webkit-scrollbar, and Chromium does not match
+     -moz-orient, so this cannot re-break the width above. */
+  @supports (-moz-orient: inline) {
+    .slim-scrollbar-light {
+      scrollbar-width: thin;
+      scrollbar-color: rgb(255 255 255 / 0.3) transparent;
+    }
+  }
 
   /* Keeps the affordance on long tables, without the chunky default bar. */
   .slim-scrollbar {
