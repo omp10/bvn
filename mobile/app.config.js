@@ -24,12 +24,17 @@ const APPS = {
     package: "com.balvahini.parent",
     // The blue half of the shield.
     tint: "#1155a5",
+    /* The mark is full colour, so it needs a pale field behind it — on a
+       saturated blue the shield's own blue disappears. A faint tint still tells
+       the two apps apart on a home screen that has both. */
+    iconBg: "#eef5fd",
   },
   staff: {
     name: "BalVahini Staff",
     package: "com.balvahini.staff",
     // The green half — a driver must never open the wrong icon in a hurry.
     tint: "#368a29",
+    iconBg: "#eff9ec",
   },
 };
 
@@ -78,7 +83,8 @@ module.exports = {
       package: app.package,
       adaptiveIcon: {
         foregroundImage: "./assets/android-icon-foreground.png",
-        backgroundColor: app.tint,
+        monochromeImage: "./assets/android-icon-monochrome.png",
+        backgroundColor: app.iconBg,
       },
       edgeToEdgeEnabled: true,
       /* Pan the window so a focused field is never left under the keyboard.
