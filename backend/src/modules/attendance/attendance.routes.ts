@@ -11,7 +11,21 @@ import { emitToSchool, emitToTrip } from "../../realtime/socket.js";
 import { messages, notify } from "../notifications/notification.service.js";
 
 export const attendanceRouter = Router();
-attendanceRouter.use(authenticate, requireRole("staff"), requireActiveSchool);
+/* Drivers as well as attendants.
+ *
+ * The mark handler has always accepted whichever of the two is on the trip —
+ * plenty of buses run without an attendant — but the router refused drivers
+ * before the request ever reached it, so a driver marking a child got
+ * "requires staff". Widening the role is safe because authorisation is not the
+ * role: every handler below proves the caller is the crew on *that* trip. */
+attendanceRouter.use(authenticate, requireRole("staff", "driver"), requireActiveSchool);
+
+/** Only the driver or the attendant on this trip may touch its attendance. */
+const assertCrew = (trip: { driverId?: unknown; attendantId?: unknown }) => {
+  const { userId } = requireContext();
+  if (String(trip.driverId) !== userId && String(trip.attendantId) !== userId)
+    throw badRequest("you are not the crew on this trip");
+};
 
 /** The attendant's bus, its running trip, and the roster with today's marks. */
 attendanceRouter.get(
@@ -71,8 +85,7 @@ attendanceRouter.post(
     ]);
     if (!trip) throw notFound("no running trip");
     if (!student) throw notFound("student not found");
-    if (String(trip.attendantId) !== ctx.userId && String(trip.driverId) !== ctx.userId)
-      throw badRequest("you are not the attendant on this trip");
+    assertCrew(trip);
     if (String(student.vehicleId) !== String(trip.vehicleId))
       throw badRequest("that student is not on this bus");
 
@@ -125,6 +138,8 @@ attendanceRouter.delete(
 
     const trip = await Trip.findOne({ _id: tripId, status: "running" });
     if (!trip) throw badRequest("the trip has ended — ask the office to correct this");
+    // Was missing: any staff member could delete another bus's marks.
+    assertCrew(trip);
 
     const removed = await Attendance.findOneAndDelete({ tripId, studentId, event });
     if (!removed) throw notFound("no such mark");
