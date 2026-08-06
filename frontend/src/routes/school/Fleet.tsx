@@ -61,14 +61,22 @@ export function SchoolBuses() {
                 </div>
               ),
             },
-            { header: "Route", cell: (b) => b.routeId?.name ?? "—", secondary: true },
+            {
+              header: "Route",
+              cell: (b) =>
+                b.routeId?.name ?? <span className="text-amber-600">Not set</span>,
+              secondary: true,
+            },
             { header: "Status", cell: (b) => <Badge value={b.status} /> },
             {
               header: "",
               align: "right",
               cell: (b) => (
+                // Named for what the modal actually does. "Assign crew" hid the
+                // route dropdown from anyone who came here looking for it — the
+                // route is the setting that decides whether parents get ETAs.
                 <Button size="sm" variant="secondary" onClick={() => setCrewFor(b)}>
-                  Assign crew
+                  Crew &amp; route
                 </Button>
               ),
             },
