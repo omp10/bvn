@@ -1,5 +1,6 @@
 import { Notification, type NOTIFICATION_TYPES } from "../../models/notification.model.js";
 import { emitToSchool } from "../../realtime/socket.js";
+import { sendPush } from "./push.js";
 
 type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -13,12 +14,13 @@ export type NotifyInput = {
 };
 
 /**
- * Records notifications and hands them to the delivery channels.
+ * Records notifications and hands them to the delivery channels: the row, the
+ * socket for anyone with the app open, and a push for everyone who does not.
  *
- * ponytail: writes the rows and pushes over the socket; FCM is a logged stub.
- * When the mobile apps ship, this function is the single place that changes —
- * push it onto a BullMQ queue so a 500-parent fan-out never blocks the request
- * that triggered it (a driver tapping Start Trip must not wait for 500 sends).
+ * ponytail: the push is fired and not awaited, so a 500-parent fan-out never
+ * blocks the request that triggered it — a driver tapping Start Trip must not
+ * wait on 500 sends. Move it onto a queue when a failed batch needs retrying
+ * rather than only logging; `sendPush` is already the single seam.
  */
 export async function notify(input: NotifyInput): Promise<void> {
   const userIds = [...new Set(input.userIds.filter(Boolean).map(String))];
@@ -46,6 +48,14 @@ export async function notify(input: NotifyInput): Promise<void> {
 
   if (process.env.NODE_ENV !== "test") {
     console.log(`[notify] ${input.type} → ${userIds.length} user(s): ${input.title}`);
+
+    void sendPush(userIds, {
+      title: input.title,
+      body: input.body,
+      // The app needs the type to decide where a tap should land.
+      data: { ...(input.data ?? {}), type: input.type },
+      channelId: input.type === "emergency" ? "emergency" : "default",
+    }).catch((err) => console.error("[notify] push failed:", err.message));
   }
 }
 
