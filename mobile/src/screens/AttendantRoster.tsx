@@ -5,7 +5,7 @@ import { useSocket } from "../socket";
 import { classOf } from "../format";
 import { colors, radius } from "../theme";
 import {
-  Alert, Avatar, Badge, Button, Card, EmptyState, Loading, Muted, Screen, T,
+  Alert, Avatar, Badge, Button, Card, EmptyState, Loading, Modal, Muted, Screen, T,
 } from "../ui";
 import { IconBus } from "../icons";
 import EmergencySheet from "./EmergencySheet";
@@ -22,6 +22,8 @@ export default function AttendantRoster() {
   const [pending, setPending] = useState<string | null>(null);
   const [sos, setSos] = useState(false);
   const [search, setSearch] = useState("");
+  const [bulk, setBulk] = useState(false);
+  const [confirmBulk, setConfirmBulk] = useState<null | "boarded" | "dropped">(null);
 
   // The driver starting the trip is what opens attendance. Without this the
   // attendant stares at "waiting for the driver" until they think to refresh.
@@ -45,6 +47,22 @@ export default function AttendantRoster() {
   const visible = needle
     ? students.filter((s) => String(s.name).toLowerCase().includes(needle))
     : students;
+
+  /* One tap per child is fine for a handful and miserable for sixty. Marking
+     the whole visible list is sequential on purpose: the endpoint is idempotent
+     per (trip, student, event), so a partial failure is safe to retry, and
+     firing sixty parallel writes at a phone on a moving bus is how you get a
+     rate-limit instead of a register. */
+  const markVisible = (event: string) => {
+    const pending = visible.filter((s: any) => !s.events.includes(event));
+    if (!pending.length) return;
+    setBulk(true);
+    void run(async () => {
+      for (const student of pending) {
+        await api("/staff/attendance", { body: { tripId: trip._id, studentId: student._id, event } });
+      }
+    }, reload).finally(() => setBulk(false));
+  };
 
   const mark = (studentId: string, event: string) => {
     setPending(studentId + event);
@@ -86,6 +104,21 @@ export default function AttendantRoster() {
             hint="Attendance opens as soon as the driver starts the trip."
           />
         </Card>
+      )}
+
+      {!!trip && (
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Button size="sm" block loading={bulk} onPress={() => setConfirmBulk("boarded")}>
+              Mark all boarded
+            </Button>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button size="sm" block variant="success" loading={bulk} onPress={() => setConfirmBulk("dropped")}>
+              Mark all dropped
+            </Button>
+          </View>
+        </View>
       )}
 
       {students.length > 8 && (
@@ -153,6 +186,33 @@ export default function AttendantRoster() {
       <Button variant="danger" size="lg" block onPress={() => setSos(true)}>
         Emergency
       </Button>
+
+      {/* Confirmed, never one-tap. Marking sixty children boarded by accident
+          tells sixty parents their child is on a bus they may not be on. */}
+      <Modal
+        open={confirmBulk !== null}
+        onClose={() => setConfirmBulk(null)}
+        title={confirmBulk === "dropped" ? "Mark everyone dropped?" : "Mark everyone boarded?"}
+        footer={
+          <>
+            <Button variant="secondary" onPress={() => setConfirmBulk(null)}>Cancel</Button>
+            <Button
+              onPress={() => {
+                const event = confirmBulk!;
+                setConfirmBulk(null);
+                markVisible(event);
+              }}
+            >
+              Yes, mark all
+            </Button>
+          </>
+        }
+      >
+        <T size={14} color={colors.slate600} style={{ lineHeight: 20 }}>
+          This marks the {visible.filter((s: any) => !s.events.includes(confirmBulk ?? "")).length} child(ren)
+          shown, and sends each parent a notification. Children already marked are skipped.
+        </T>
+      </Modal>
 
       <EmergencySheet open={sos} onClose={() => setSos(false)} tripId={trip?._id} />
     </Screen>

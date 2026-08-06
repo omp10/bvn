@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, Linking, Pressable, StyleSheet, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { api, uploadPhoto, useAction, useQuery } from "../api";
@@ -169,6 +169,30 @@ export default function DriverTrip() {
               </View>
             ))}
           </View>
+        </Card>
+      )}
+
+      {/* Xiaomi, Oppo, Vivo and Realme kill background services regardless of a
+          correctly declared foreground service. No amount of correct code avoids
+          this — the driver has to grant the exemption once, so say so where they
+          will actually read it. */}
+      {trip && !gps.needsPermission && (
+        <Card>
+          <T size={13} weight="700">Tracking stops when the phone sleeps?</T>
+          <Muted style={{ marginTop: 4, lineHeight: 18 }}>
+            Some phones (Xiaomi, Oppo, Vivo, Realme) shut BalVahini down in the
+            background. Open Settings and allow it to run without restriction —
+            once is enough.
+          </Muted>
+          <Button
+            variant="secondary"
+            size="sm"
+            block
+            style={{ marginTop: 12 }}
+            onPress={() => Linking.openSettings()}
+          >
+            Open app settings
+          </Button>
         </Card>
       )}
 

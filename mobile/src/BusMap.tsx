@@ -1,8 +1,10 @@
-import { useMemo, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
 import { colors, radius } from "./theme";
-import { Muted } from "./ui";
+import { Muted, T } from "./ui";
 
 export type MapStop = { _id?: string; name: string; lat: number; lng: number; sequence?: number };
 export type MapPoint = { lat: number; lng: number };
@@ -27,6 +29,7 @@ export default function BusMap({
   highlightStopId,
   follow = true,
   height = 300,
+  expandable = true,
 }: {
   bus?: MapPoint | null;
   stops?: MapStop[];
@@ -35,8 +38,12 @@ export default function BusMap({
   follow?: boolean;
   /** A number of pixels, or "fill" to take the space the parent gives it. */
   height?: number | "fill";
+  /** Adds a tap-to-expand full-screen view. On by default for inline maps. */
+  expandable?: boolean;
 }) {
   const web = useRef<WebView>(null);
+  const full = useRef<WebView>(null);
+  const [expanded, setExpanded] = useState(false);
 
   // Only the stops belong in the page source; they do not change while a trip
   // runs, and rebuilding the HTML is what causes the flash.
@@ -60,7 +67,15 @@ export default function BusMap({
   // without an effect and a dependency list to get wrong.
   const update = `window.bvUpdate(${JSON.stringify({ bus: bus ?? null, trail })});true;`;
 
+  /* An inline map lives inside a scrolling screen, so a drag on it scrolls the
+     page instead of panning the map — the gesture is owned by the ScrollView and
+     no WebView prop wins that fight reliably. Rather than pretend, the inline
+     map is a preview that opens a real full-screen one, where every gesture is
+     unambiguous. */
+  const canExpand = expandable && height !== "fill";
+
   return (
+    <>
     <View style={[s.wrap, box]}>
       <WebView
         ref={web}
@@ -78,8 +93,42 @@ export default function BusMap({
         // A map is decorative chrome around data the screen already states in
         // text; nothing here should trigger a navigation.
         setSupportMultipleWindows={false}
+        // The inline preview must not swallow the page scroll.
+        pointerEvents={canExpand ? "none" : "auto"}
       />
+
+      {canExpand && (
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setExpanded(true)}>
+          <View style={s.expandHint}>
+            <T size={12} weight="700" color={colors.white}>Tap to open map</T>
+          </View>
+        </Pressable>
+      )}
     </View>
+
+    <Modal visible={expanded} animationType="slide" onRequestClose={() => setExpanded(false)}>
+      <View style={{ flex: 1, backgroundColor: colors.slate900 }}>
+        <StatusBar style="light" />
+        <WebView
+          ref={full}
+          originWhitelist={["*"]}
+          source={{ html }}
+          injectedJavaScript={update}
+          onLoadEnd={() => full.current?.injectJavaScript(update)}
+          style={{ flex: 1, backgroundColor: colors.slate100 }}
+          javaScriptEnabled
+          domStorageEnabled
+          androidLayerType="hardware"
+          setSupportMultipleWindows={false}
+        />
+        <SafeAreaView edges={["top"]} style={s.fullBar}>
+          <Pressable onPress={() => setExpanded(false)} hitSlop={12} style={s.fullClose}>
+            <T size={15} weight="700" color={colors.white}>✕  Close</T>
+          </Pressable>
+        </SafeAreaView>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -234,6 +283,22 @@ function page(stops: MapStop[], highlightStopId: string | null, follow: boolean)
 
 const s = StyleSheet.create({
   wrap: { overflow: "hidden", borderRadius: radius.md, backgroundColor: colors.slate100 },
+  expandHint: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    backgroundColor: "rgba(15,23,42,0.75)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+  },
+  fullBar: { position: "absolute", top: 0, left: 0, right: 0, alignItems: "flex-end", padding: 12 },
+  fullClose: {
+    backgroundColor: "rgba(15,23,42,0.8)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+  },
   blank: {
     alignItems: "center",
     justifyContent: "center",

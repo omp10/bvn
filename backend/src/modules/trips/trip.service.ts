@@ -5,6 +5,7 @@ import { School } from "../../models/school.model.js";
 import { Student } from "../../models/student.model.js";
 import { TransportRoute } from "../../models/route.model.js";
 import { Trip } from "../../models/trip.model.js";
+import { User } from "../../models/user.model.js";
 import { Vehicle } from "../../models/vehicle.model.js";
 import { emitToSchool, emitToTrip } from "../../realtime/socket.js";
 import { clearLivePosition, setLivePosition } from "../../lib/redis.js";
@@ -115,7 +116,62 @@ export async function endTrip(tripId: string, driverId: string, schoolId: string
 
   emitToSchool(schoolId, "trip:ended", { tripId: String(trip._id) });
   emitToTrip(String(trip._id), "trip:ended", { tripId: String(trip._id) });
+
+  await checkNobodyLeftOnBoard(trip, schoolId);
+
   return { trip, changed: true };
+}
+
+/**
+ * The check that matters more than anything else in this file.
+ *
+ * A child marked onto the bus and never marked off it is either an attendant
+ * who forgot to tap, or a child asleep on the back seat. The app cannot tell
+ * those apart — and must therefore treat every one of them as the second.
+ *
+ * Deliberately loud: the driver, the whole school office and the child's own
+ * parent, all at once, on the emergency channel. A false alarm costs somebody a
+ * walk down the aisle. The other kind of mistake has killed children.
+ */
+async function checkNobodyLeftOnBoard(trip: InstanceType<typeof Trip>, schoolId: string) {
+  const marks = await Attendance.find({ tripId: trip._id }).select("studentId event").lean();
+  if (!marks.length) return;
+
+  const dropped = new Set(
+    marks.filter((m) => m.event === "dropped").map((m) => String(m.studentId))
+  );
+  const stillOn = [
+    ...new Set(
+      marks
+        .filter((m) => m.event === "boarded" && !dropped.has(String(m.studentId)))
+        .map((m) => String(m.studentId))
+    ),
+  ];
+  if (!stillOn.length) return;
+
+  const [vehicle, students, admins] = await Promise.all([
+    Vehicle.findById(trip.vehicleId).select("busNumber vehicleNumber").lean(),
+    Student.find({ _id: { $in: stillOn } }).select("name parentId").lean(),
+    User.find({ role: "school_admin" }).select("_id").lean(),
+  ]);
+  const label = vehicle?.busNumber ?? vehicle?.vehicleNumber ?? "the bus";
+
+  for (const student of students) {
+    await notify({
+      userIds: [student.parentId, trip.driverId, ...admins.map((a) => a._id)],
+      ...messages.childLeftOnBus(student.name, label),
+      type: "child_left_on_bus",
+      data: { tripId: String(trip._id), studentId: String(student._id) },
+      schoolId,
+    });
+  }
+
+  emitToSchool(schoolId, "trip:children_on_board", {
+    tripId: String(trip._id),
+    students: students.map((s) => ({ id: String(s._id), name: s.name })),
+  });
+
+  console.warn(`[safety] ${students.length} child(ren) never marked off ${label}`);
 }
 
 export type IncomingPoint = {
@@ -392,6 +448,58 @@ async function recordSchoolArrival(
       userIds: [student.parentId],
       ...messages.childEnteredSchool(student.name),
       type: "child_entered_school",
+      data: { tripId: String(trip._id), studentId: String(student._id) },
+      schoolId,
+    });
+  }
+
+  await flagUnaccountedChildren(trip, label, schoolId);
+}
+
+/**
+ * Children on this bus with no mark at all by the time it reaches school —
+ * neither boarded nor absent. FRD §21.6 calls this "missed pickup".
+ *
+ * Silence is the dangerous case: a child nobody tapped is indistinguishable from
+ * a child nobody collected. Recording it as a real attendance event means it
+ * shows up in the day's register rather than living only in a notification the
+ * office may never open.
+ */
+async function flagUnaccountedChildren(
+  trip: InstanceType<typeof Trip>,
+  busLabel: string,
+  schoolId: string
+) {
+  const [onBus, marks] = await Promise.all([
+    Student.find({ vehicleId: trip.vehicleId, active: true }).select("name parentId").lean(),
+    Attendance.find({ tripId: trip._id }).select("studentId").lean(),
+  ]);
+
+  const marked = new Set(marks.map((m) => String(m.studentId)));
+  const unaccounted = onBus.filter((s) => !marked.has(String(s._id)));
+  if (!unaccounted.length) return;
+
+  const admins = await User.find({ role: "school_admin" }).select("_id").lean();
+
+  for (const student of unaccounted) {
+    // Idempotent through the unique index on (tripId, studentId, event), so a
+    // retry or a second arrival fix cannot double-record or double-notify.
+    try {
+      await Attendance.create({
+        tripId: trip._id,
+        studentId: student._id,
+        event: "missed_pickup",
+        markedBy: trip.driverId,
+      });
+    } catch (err) {
+      if (!isDuplicateKey(err)) throw err;
+      continue; // Already flagged — do not notify twice.
+    }
+
+    await notify({
+      userIds: [student.parentId, ...admins.map((a) => a._id)],
+      ...messages.childUnaccounted(student.name, busLabel),
+      type: "child_unaccounted",
       data: { tripId: String(trip._id), studentId: String(student._id) },
       schoolId,
     });

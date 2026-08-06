@@ -121,6 +121,15 @@ module.exports = {
       ],
       ...(VARIANT === "staff" ? staffPlugins : []),
     ],
+    /* Over-the-air updates. A driver's phone picks up a JS fix on next launch
+       instead of every driver reinstalling an APK — which, for a fleet spread
+       across a city, is the difference between a fix shipping today and next
+       month. Native changes still need a rebuild. */
+    updates: {
+      url: "https://u.expo.dev/dd60e638-16b3-4531-a102-8e2b392a5ee2",
+      fallbackToCacheTimeout: 0,
+    },
+    runtimeVersion: { policy: "appVersion" },
     extra: {
       variant: VARIANT,
       /* Where the API lives. Baked in at build time — a phone has no dev proxy,

@@ -4,6 +4,9 @@ import { sendPush } from "./push.js";
 
 type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+/** Types that must reach a phone even when trip chatter is silenced. */
+const URGENT = new Set<string>(["emergency", "child_left_on_bus", "child_unaccounted"]);
+
 export type NotifyInput = {
   userIds: unknown[];
   type: NotificationType;
@@ -54,7 +57,9 @@ export async function notify(input: NotifyInput): Promise<void> {
       body: input.body,
       // The app needs the type to decide where a tap should land.
       data: { ...(input.data ?? {}), type: input.type },
-      channelId: input.type === "emergency" ? "emergency" : "default",
+      // A child unaccounted for is an emergency whatever the enum calls it, so
+      // it rides the channel a parent cannot mute along with trip chatter.
+      channelId: URGENT.has(input.type) ? "emergency" : "default",
     }).catch((err) => console.error("[notify] push failed:", err.message));
   }
 }
@@ -96,6 +101,18 @@ export const messages = {
   tripDelayed: (busNumber: string, minutes: number) => ({
     title: "Bus running late",
     body: `${busNumber} is about ${minutes} minute${minutes === 1 ? "" : "s"} behind schedule.`,
+  }),
+  childLeftOnBus: (name: string, busNumber: string) => ({
+    title: "Child still marked on board",
+    body: `${name} was boarded onto ${busNumber} but never marked dropped. Check the bus now.`,
+  }),
+  childUnaccounted: (name: string, busNumber: string) => ({
+    title: "Child not accounted for",
+    body: `${name} was not marked boarded or absent on ${busNumber} this morning.`,
+  }),
+  overspeed: (busNumber: string, kmph: number) => ({
+    title: "Bus over speed limit",
+    body: `${busNumber} was recorded at ${kmph} km/h.`,
   }),
   tripCompleted: (busNumber: string) => ({
     title: "Trip completed",
