@@ -30,14 +30,18 @@ export const ROLE_LABEL: Record<Role, string> = {
 /**
  * Which roles each APK is for.
  *
+ * The staff app takes everyone who signs in with a password — the same audience
+ * as the web `/login`. Drivers and attendants are what it is *for*, but a school
+ * admin or a fleet owner checking on a bus from their phone should not be told
+ * to go and find a laptop.
+ *
  * Checked on the client after sign-in as a courtesy, not as a control: the
- * server already refuses a parent at the password endpoint and a driver has no
- * parent data to fetch. The point is a clear message instead of an empty screen
- * when someone installs the wrong app.
+ * server already refuses a parent at the password endpoint. The point is a clear
+ * message instead of an empty screen when someone installs the wrong app.
  */
 export const ROLES_FOR_VARIANT: Record<typeof VARIANT, Role[]> = {
   parent: ["parent"],
-  staff: ["driver", "staff"],
+  staff: ["driver", "staff", "school_admin", "owner", "super_admin"],
 };
 
 type AuthValue = {

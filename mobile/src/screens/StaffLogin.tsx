@@ -7,9 +7,9 @@ import { Alert, Button, Field, Muted, T } from "../ui";
 import AuthLayout from "./AuthLayout";
 
 /**
- * Drivers and attendants sign in with the mobile number and password the school
- * office issued them. No self-registration here — an account on a bus is created
- * by the school, never claimed.
+ * Everyone who signs in with a password — the same audience as the web
+ * `/login`. No self-registration here: an account on a bus is created by the
+ * school office, never claimed.
  */
 export default function StaffLogin() {
   const { signIn } = useAuth();
@@ -27,7 +27,8 @@ export default function StaffLogin() {
     <AuthLayout>
       <T size={22} weight="800">Sign in</T>
       <Muted size={13} style={{ marginTop: 4, marginBottom: 18, lineHeight: 18 }}>
-        Use the mobile number and password your school gave you.
+        For drivers, attendants, school staff and fleet owners. Parents sign in on
+        the BalVahini Parent app.
       </Muted>
 
       <View style={{ gap: 14 }}>

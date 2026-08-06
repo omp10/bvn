@@ -25,6 +25,9 @@ import DriverTrip from "./screens/DriverTrip";
 import DriverLive from "./screens/DriverLive";
 import DriverHistory from "./screens/DriverHistory";
 import AttendantRoster from "./screens/AttendantRoster";
+import Overview from "./screens/Overview";
+import SchoolLive from "./screens/SchoolLive";
+import OwnerFleet from "./screens/OwnerFleet";
 
 const Tab = createBottomTabNavigator();
 export const navRef = createNavigationContainerRef();
@@ -58,6 +61,26 @@ const TABS: Record<string, TabDef[]> = {
     { name: "Alerts", title: "Alerts", component: Alerts, icon: IconBell },
     { name: "Profile", title: "Profile", component: Profile, icon: IconUser },
   ],
+  /* The desk roles get a read-only view. Managing students, routes and salaries
+     is a sidebar-sized job that belongs on the web app; what a phone is good for
+     is "where are my buses and is anything wrong". */
+  school_admin: [
+    { name: "Overview", title: "Today", component: Overview, icon: IconHome },
+    { name: "Live", title: "Live buses", component: SchoolLive, icon: IconMap },
+    { name: "Alerts", title: "Alerts", component: Alerts, icon: IconBell },
+    { name: "Profile", title: "Profile", component: Profile, icon: IconUser },
+  ],
+  owner: [
+    { name: "Overview", title: "Overview", component: Overview, icon: IconHome },
+    { name: "Live", title: "My vehicles", component: OwnerFleet, icon: IconBus },
+    { name: "Alerts", title: "Alerts", component: Alerts, icon: IconBell },
+    { name: "Profile", title: "Profile", component: Profile, icon: IconUser },
+  ],
+  super_admin: [
+    { name: "Overview", title: "Platform", component: Overview, icon: IconHome },
+    { name: "Alerts", title: "Alerts", component: Alerts, icon: IconBell },
+    { name: "Profile", title: "Profile", component: Profile, icon: IconUser },
+  ],
 };
 
 const theme = {
@@ -73,7 +96,10 @@ const theme = {
 };
 
 function Tabs({ role }: { role: string }) {
-  const tabs = TABS[role] ?? TABS.parent;
+  /* An unrecognised role gets the two tabs that need no role-specific endpoint.
+     Falling back to the parent tabs would fetch /parent/children as a driver and
+     show a permission error where a screen should be. */
+  const tabs = TABS[role] ?? TABS.super_admin.slice(1);
 
   return (
     <Tab.Navigator

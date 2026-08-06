@@ -51,7 +51,7 @@ export default function AuthLayout({ children, footer }: { children: ReactNode; 
                 BalVahini
               </T>
               <T size={13} color="rgba(255,255,255,0.75)" style={{ marginTop: 2 }}>
-                {VARIANT === "parent" ? "Safe Journeys, Brighter Futures" : "Driver & Attendant"}
+                {VARIANT === "parent" ? "Safe Journeys, Brighter Futures" : "For school staff and fleet owners"}
               </T>
             </View>
 
