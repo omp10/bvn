@@ -154,6 +154,31 @@
   }
   li svg { width: 1.05rem; height: 1.05rem; flex: none; }
 
+  /* The page is the public front door, so it has to let the people who already
+     have accounts through it — otherwise "coming soon" strands every parent
+     holding a school circular. */
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    justify-content: center;
+    margin-top: 2rem;
+  }
+  .cta a {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .8rem 1.4rem;
+    border-radius: .7rem;
+    font-size: .9rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .cta a:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgb(15 23 42 / .12); }
+  .cta .primary { background: var(--brand); color: #fff; }
+  .cta .secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+
   .rule {
     margin: 2.5rem auto 0;
     width: min(22rem, 70%);
@@ -223,6 +248,11 @@
         Caring Always
       </li>
     </ul>
+
+    <div class="cta">
+      <a class="primary" href="/parent/login">Track your child's bus</a>
+      <a class="secondary" href="/login">School staff &amp; drivers</a>
+    </div>
 
     <div class="rule"></div>
 
