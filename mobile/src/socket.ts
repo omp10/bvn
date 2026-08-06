@@ -21,7 +21,12 @@ export function getSocket(): Socket | null {
     socket = io(API_URL, {
       path: "/socket.io",
       auth: { token },
-      transports: ["websocket"],
+      /* Polling stays in the list. A websocket is better on every count, but
+         Indian mobile carriers and school Wi-Fi captive portals both break the
+         upgrade often enough that websocket-only means "no live tracking at
+         all" for whoever is behind one — and falling back to a slower transport
+         beats a parent watching a bus that never moves. */
+      transports: ["websocket", "polling"],
       reconnectionDelay: 1000,
       reconnectionDelayMax: 8000,
     });
