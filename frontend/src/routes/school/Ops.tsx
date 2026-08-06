@@ -3,14 +3,18 @@ import { api, download, useAction, useQuery } from "../../lib/api";
 import { payInvoice } from "../../lib/razorpay";
 import { ago, classOf, date, dateTime, titleCase } from "../../lib/format";
 import {
-  Alert, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Table,
+  Alert, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Table,
 } from "../../components/ui";
 import { IconAlert, IconDownload, IconPlus } from "../../components/icons";
 
 /* ── Routes and stops ───────────────────────────────────────────────── */
 
-type Stop = { _id?: string; name: string; lat: number; lng: number; sequence: number; pickupTime?: string; dropTime?: string };
-type Route = { _id: string; name: string; number?: string; type: string; distanceKm?: number; stops: Stop[]; studentCount?: number; buses?: string[] };
+type Stop = { _id?: string; name: string; address?: string; lat: number; lng: number; sequence: number; pickupTime?: string; dropTime?: string };
+type Route = {
+  _id: string; name: string; number?: string; type: "morning" | "evening";
+  startPoint?: string; endPoint?: string; distanceKm?: number;
+  stops: Stop[]; studentCount?: number; buses?: string[];
+};
 
 export function SchoolRoutes() {
   const list = useQuery<Route[]>("/school/routes");
@@ -72,6 +76,10 @@ function RouteEditor({ route, onClose, onDone }: { route: Route | null; onClose:
   const { busy, error, run } = useAction();
   const [name, setName] = useState(route?.name ?? "");
   const [number, setNumber] = useState(route?.number ?? "");
+  const [type, setType] = useState(route?.type ?? "morning");
+  const [startPoint, setStartPoint] = useState(route?.startPoint ?? "");
+  const [endPoint, setEndPoint] = useState(route?.endPoint ?? "");
+  const [distanceKm, setDistanceKm] = useState(route?.distanceKm != null ? String(route.distanceKm) : "");
   const [stops, setStops] = useState<Stop[]>(
     route?.stops.map((s) => ({ ...s })) ?? [{ name: "", lat: 18.5204, lng: 73.8567, sequence: 1 }]
   );
@@ -87,6 +95,11 @@ function RouteEditor({ route, onClose, onDone }: { route: Route | null; onClose:
           body: {
             name,
             number: number || undefined,
+            type,
+            startPoint: startPoint || undefined,
+            endPoint: endPoint || undefined,
+            // Omitted rather than sent as NaN when the box is left empty.
+            ...(distanceKm ? { distanceKm: Number(distanceKm) } : {}),
             // Re-numbered on save so the sequence can never have holes.
             stops: stops.map((s, i) => ({ ...s, sequence: i + 1, lat: Number(s.lat), lng: Number(s.lng) })),
           },
@@ -113,6 +126,25 @@ function RouteEditor({ route, onClose, onDone }: { route: Route | null; onClose:
           <Field label="Route number" value={number} onChange={(e) => setNumber(e.target.value)} />
         </div>
 
+        {/* FRD §15.1 and §15.4 — the trip type decides which stops a morning
+            run uses, and the endpoints are what a new office staffer reads to
+            understand where a route actually goes. */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Select label="Route type" value={type} onChange={(e) => setType(e.target.value as Route["type"])}>
+            <option value="morning">Morning</option>
+            <option value="evening">Evening</option>
+          </Select>
+          <Field label="Total distance (km)" type="number" step="any" min={0} value={distanceKm}
+            onChange={(e) => setDistanceKm(e.target.value)} />
+          <div />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Starting point" placeholder="Depot, Kothrud" value={startPoint}
+            onChange={(e) => setStartPoint(e.target.value)} />
+          <Field label="Destination" placeholder="School gate" value={endPoint}
+            onChange={(e) => setEndPoint(e.target.value)} />
+        </div>
+
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">Stops, in order</p>
           <div className="space-y-3">
@@ -128,6 +160,8 @@ function RouteEditor({ route, onClose, onDone }: { route: Route | null; onClose:
                   )}
                 </div>
                 <Field label="Stop name" value={stop.name} onChange={(e) => update(i, { name: e.target.value })} />
+                <Field label="Stop address" className="mt-3" hint="Optional — what a parent would recognise"
+                  value={stop.address ?? ""} onChange={(e) => update(i, { address: e.target.value })} />
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <Field label="Latitude" type="number" step="any" value={stop.lat}
                     onChange={(e) => update(i, { lat: Number(e.target.value) })} />

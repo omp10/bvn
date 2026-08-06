@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { api, useAction, useQuery } from "../../lib/api";
+import { useRef, useState } from "react";
+import { api, uploadFile, useAction, useQuery } from "../../lib/api";
 import { date, daysLeft } from "../../lib/format";
 import {
   Alert, Avatar, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Table, cx,
 } from "../../components/ui";
-import { IconPlus } from "../../components/icons";
+import { IconCamera, IconPlus } from "../../components/icons";
 
 type Bus = {
   _id: string; busNumber: string; vehicleNumber: string; capacity: number; status: string;
@@ -108,6 +108,10 @@ function AddBus({ open, onClose, onDone }: { open: boolean; onClose: () => void;
                   busNumber: form.busNumber,
                   vehicleNumber: form.vehicleNumber,
                   capacity: Number(form.capacity),
+                  // Optional in the FRD and in the schema; sending "" would fail
+                  // a min-length check that an absent field passes.
+                  ...(form.name ? { name: form.name } : {}),
+                  ...(form.type ? { type: form.type } : {}),
                 },
               }),
             () => { setForm({}); onDone(); onClose(); }
@@ -118,7 +122,16 @@ function AddBus({ open, onClose, onDone }: { open: boolean; onClose: () => void;
         <Field label="Bus number" placeholder="Bus 4" value={form.busNumber ?? ""} onChange={set("busNumber")} required autoFocus />
         <Field label="Vehicle number" placeholder="MH12 AB 1234" value={form.vehicleNumber ?? ""}
           onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value.toUpperCase() })} required />
-        <Field label="Seating capacity" type="number" min={1} max={100} value={form.capacity ?? ""} onChange={set("capacity")} required />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Seating capacity" type="number" min={1} max={100} value={form.capacity ?? ""} onChange={set("capacity")} required />
+          <Select label="Bus type" value={form.type ?? "bus"} onChange={set("type")}>
+            <option value="bus">Bus</option>
+            <option value="minibus">Minibus</option>
+            <option value="van">Van</option>
+          </Select>
+        </div>
+        <Field label="Bus name" hint="Optional — what the children call it" placeholder="Sunflower"
+          value={form.name ?? ""} onChange={set("name")} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={busy}>Add bus</Button>
@@ -200,6 +213,63 @@ function CrewModal({
   );
 }
 
+/**
+ * Profile photo — FRD §12.1 and §13.1.
+ *
+ * Uploaded before the person exists, so it is a plain URL the create call
+ * carries rather than a second request afterwards. A file orphaned by an
+ * abandoned form is a far smaller problem than a half-created driver.
+ */
+function PhotoField({ url, onChange }: { url: string | null; onChange: (url: string | null) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pick = async (file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await uploadFile<{ url: string }>("/uploads/photos", file);
+      onChange(result.url);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+      // Reset, so picking the same file again still fires onChange.
+      if (input.current) input.current.value = "";
+    }
+  };
+
+  return (
+    <div>
+      <span className="mb-1 block text-sm font-medium text-slate-700">Photo</span>
+      <Alert>{error}</Alert>
+      <input ref={input} type="file" accept="image/*" className="hidden"
+        onChange={(e) => void pick(e.target.files?.[0])} />
+
+      <div className="flex items-center gap-3">
+        {url ? (
+          <img src={url} alt="" className="h-14 w-14 rounded-lg object-cover ring-1 ring-slate-200" />
+        ) : (
+          <span className="grid h-14 w-14 place-items-center rounded-lg bg-slate-100 text-slate-400">
+            <IconCamera className="h-5 w-5" />
+          </span>
+        )}
+        <Button type="button" size="sm" variant="secondary" loading={busy} onClick={() => input.current?.click()}>
+          {url ? "Replace" : "Upload"}
+        </Button>
+        {url && (
+          <Button type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>
+            Remove
+          </Button>
+        )}
+        <span className="text-xs text-slate-500">Optional</span>
+      </div>
+    </div>
+  );
+}
+
 /* ── Drivers and attendants ─────────────────────────────────────────── */
 
 export function SchoolPeople({ kind }: { kind: "drivers" | "attendants" }) {
@@ -266,6 +336,7 @@ function AddPerson({
 }: { kind: "drivers" | "attendants"; open: boolean; onClose: () => void; onDone: () => void }) {
   const { busy, error, run } = useAction();
   const [form, setForm] = useState<Record<string, string>>({});
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const set = (k: string) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
 
   return (
@@ -281,12 +352,25 @@ function AddPerson({
                   name: form.name,
                   phone: form.phone,
                   password: form.password,
+                  // Every optional field is omitted rather than sent empty — an
+                  // empty string fails the length and email checks that an
+                  // absent field passes cleanly.
+                  ...(form.email ? { email: form.email } : {}),
+                  ...(form.address ? { address: form.address } : {}),
+                  ...(form.aadhaar ? { aadhaar: form.aadhaar } : {}),
+                  ...(photoUrl ? { photoUrl: new URL(photoUrl, location.origin).href } : {}),
                   ...(kind === "drivers"
-                    ? { licenseNumber: form.licenseNumber, licenseExpiry: form.licenseExpiry }
+                    ? {
+                        licenseNumber: form.licenseNumber,
+                        licenseExpiry: form.licenseExpiry,
+                        ...(form.experienceYears
+                          ? { experienceYears: Number(form.experienceYears) }
+                          : {}),
+                      }
                     : {}),
                 },
               }),
-            () => { setForm({}); onDone(); onClose(); }
+            () => { setForm({}); setPhotoUrl(null); onDone(); onClose(); }
           );
         }}
       >
@@ -298,11 +382,26 @@ function AddPerson({
           <Field label="Password" type="password" hint="They sign in with this" value={form.password ?? ""} onChange={set("password")} required />
         </div>
         {kind === "drivers" && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Licence number" value={form.licenseNumber ?? ""} onChange={set("licenseNumber")} required />
-            <Field label="Licence expiry" type="date" value={form.licenseExpiry ?? ""} onChange={set("licenseExpiry")} required />
-          </div>
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Licence number" value={form.licenseNumber ?? ""} onChange={set("licenseNumber")} required />
+              <Field label="Licence expiry" type="date" value={form.licenseExpiry ?? ""} onChange={set("licenseExpiry")} required />
+            </div>
+            <Field label="Years of experience" type="number" min={0} max={60} hint="Optional"
+              value={form.experienceYears ?? ""} onChange={set("experienceYears")} />
+          </>
         )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Aadhaar number" inputMode="numeric" hint="Optional — 12 digits"
+            value={form.aadhaar ?? ""}
+            onChange={(e) => setForm({ ...form, aadhaar: e.target.value.replace(/\D/g, "").slice(0, 12) })} />
+          <Field label="Email" type="email" hint="Optional" value={form.email ?? ""} onChange={set("email")} />
+        </div>
+        <Field label="Address" hint="Optional" value={form.address ?? ""} onChange={set("address")} />
+
+        <PhotoField url={photoUrl} onChange={setPhotoUrl} />
+
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={busy}>Add</Button>
