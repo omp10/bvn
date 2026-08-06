@@ -130,8 +130,15 @@ function page(stops: MapStop[], highlightStopId: string | null, follow: boolean)
   var map = L.map('map', { zoomControl: false, attributionControl: true })
              .setView([18.5204, 73.8567], 14);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap', maxZoom: 19
+
+  /* CARTO Positron rather than standard OSM tiles. Standard OSM draws every
+     shop, tree and building name, which at a glance buries the one thing this
+     map exists to show — the bus. A pale basemap lets the route and the marker
+     carry all the colour. Free, and still no API key. */
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 20
   }).addTo(map);
 
   function pin(fill, glyph) {
@@ -151,8 +158,39 @@ function page(stops: MapStop[], highlightStopId: string | null, follow: boolean)
       .addTo(map).bindPopup(s.name + (s.mine ? '<br/><b>Your stop</b>' : ''));
     pts.push([s.lat, s.lng]);
   });
+  /* The route line.
+   *
+   * A straight line between stops cuts through buildings and rivers and reads
+   * as "the app does not know the roads". OSRM snaps the stop sequence to the
+   * actual driving network — the Zomato-looking line — with no key and no bill.
+   *
+   * It is drawn straight first and replaced when the road geometry arrives, so
+   * a slow or unreachable router degrades to the old behaviour instead of an
+   * empty map. The public demo server has no SLA; point OSRM_HOST at your own
+   * instance if this ever matters at scale.
+   */
+  var routeLine = null;
   if (D.stops.length > 1) {
-    L.polyline(pts, { color: '${colors.leaf500}', weight: 4, opacity: .5, dashArray: '6 8' }).addTo(map);
+    routeLine = L.polyline(pts, {
+      color: '${colors.brand400}', weight: 5, opacity: .45, dashArray: '6 8', lineJoin: 'round'
+    }).addTo(map);
+
+    var coords = D.stops.map(function (s) { return s.lng + ',' + s.lat; }).join(';');
+    fetch('https://router.project-osrm.org/route/v1/driving/' + coords + '?overview=full&geometries=geojson')
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var g = j && j.routes && j.routes[0] && j.routes[0].geometry;
+        if (!g || !g.coordinates || g.coordinates.length < 2) return;
+        var latlngs = g.coordinates.map(function (c) { return [c[1], c[0]]; });
+        map.removeLayer(routeLine);
+        // Casing underneath, colour on top — the trick that keeps a thin line
+        // readable over a pale basemap at every zoom.
+        L.polyline(latlngs, { color: '#ffffff', weight: 9, opacity: .9, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+        routeLine = L.polyline(latlngs, {
+          color: '${colors.brand500}', weight: 5, opacity: .95, lineJoin: 'round', lineCap: 'round'
+        }).addTo(map);
+      })
+      .catch(function () { /* Keep the straight line. */ });
   }
 
   var busMarker = null, trailLine = null, fitted = false;
@@ -166,11 +204,17 @@ function page(stops: MapStop[], highlightStopId: string | null, follow: boolean)
       if (D.follow) map.panTo([b.lat, b.lng], { animate: true, duration: 0.8 });
     }
 
+    /* Where the bus has actually been. These are real GPS fixes, so they already
+       follow the road — no snapping needed, and drawn over the planned route so
+       "travelled" is visibly distinct from "still to come". */
     var t = (state && state.trail) || [];
     if (t.length > 1) {
       var line = t.map(function (p) { return [p.lat, p.lng]; });
       if (trailLine) trailLine.setLatLngs(line);
-      else trailLine = L.polyline(line, { color: '${colors.brand600}', weight: 4, opacity: .85 }).addTo(map);
+      else trailLine = L.polyline(line, {
+        color: '${colors.leaf600}', weight: 5, opacity: .95, lineJoin: 'round', lineCap: 'round'
+      }).addTo(map);
+      trailLine.bringToFront();
     }
 
     /* Fit once, when there is finally something to fit. Re-fitting on every

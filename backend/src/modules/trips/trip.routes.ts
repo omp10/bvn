@@ -41,6 +41,49 @@ driverRouter.get(
   })
 );
 
+/**
+ * The driver's own roster, with today's marks.
+ *
+ * The attendant has had this all along at /staff/attendance/roster, but that
+ * route is role-locked to staff — so a driver on a bus with no attendant could
+ * mark attendance (the attendance handler already accepts the trip's driver)
+ * yet had no way to see who was on board. This closes that.
+ */
+driverRouter.get(
+  "/students",
+  handler(async (_req, res) => {
+    const vehicle = await Vehicle.findOne({ driverId: requireContext().userId })
+      .populate("routeId", "name stops")
+      .lean();
+    if (!vehicle) throw notFound("no bus is assigned to you");
+
+    const trip = await Trip.findOne({ vehicleId: vehicle._id, status: "running" }).lean();
+    const students = await Student.find({ vehicleId: vehicle._id, active: true })
+      .sort({ class: 1, name: 1 })
+      .lean();
+
+    const marks = trip ? await Attendance.find({ tripId: trip._id }).lean() : [];
+
+    const stops = (vehicle.routeId as { stops?: { _id: unknown; name: string }[] } | null)?.stops ?? [];
+    const stopName = (id: unknown) => stops.find((s) => String(s._id) === String(id))?.name ?? null;
+
+    res.json({
+      trip: trip ? { _id: trip._id, type: trip.type } : null,
+      students: students.map((s) => ({
+        _id: s._id,
+        name: s.name,
+        class: s.class,
+        section: s.section,
+        rollNo: s.rollNo,
+        photoUrl: s.photoUrl ?? null,
+        pickupStop: stopName(s.pickupStopId),
+        dropStop: stopName(s.dropStopId),
+        events: marks.filter((m) => String(m.studentId) === String(s._id)).map((m) => m.event),
+      })),
+    });
+  })
+);
+
 driverRouter.post(
   "/trips/start",
   validate({

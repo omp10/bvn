@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import * as SecureStore from "expo-secure-store";
+// The legacy entry point is where uploadAsync lives in SDK 54+.
+import * as FileSystem from "expo-file-system/legacy";
 import { API_URL } from "./theme";
 
 const ACCESS = "bv_access";
@@ -133,26 +135,37 @@ export async function api<T = any>(path: string, options: Options = {}): Promise
 }
 
 /**
- * Uploads a photo. Not routed through api(): a multipart body must not carry a
- * JSON content-type, and React Native builds the boundary itself.
+ * Uploads a photo.
+ *
+ * Uses expo-file-system rather than fetch + FormData. React Native's FormData
+ * rejects the `{ uri, name, type }` file part on the New Architecture with
+ * "Unsupported FormData part", so the driver's check-in selfie never uploaded.
+ * uploadAsync builds the multipart body natively and never touches the JS
+ * FormData shim, which is the whole reason the bug goes away.
  */
 export async function uploadPhoto(uri: string): Promise<{ url: string }> {
-  const form = new FormData();
-  const name = uri.split("/").pop() || "photo.jpg";
-  form.append("file", { uri, name, type: "image/jpeg" } as any);
-
   const send = () =>
-    fetch(API_URL + "/api/uploads/photos", {
-      method: "POST",
-      headers: tokens.access() ? { Authorization: `Bearer ${tokens.access()}` } : undefined,
-      body: form,
+    FileSystem.uploadAsync(API_URL + "/api/uploads/photos", uri, {
+      httpMethod: "POST",
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      // The server names this exact field, and says so in its own error.
+      fieldName: "file",
+      mimeType: "image/jpeg",
+      headers: tokens.access() ? { Authorization: `Bearer ${tokens.access()}` } : {},
     });
 
   let res = await send();
   if (res.status === 401 && (await refreshSession())) res = await send();
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, (data as any).error ?? "Upload failed");
+  let data: any = {};
+  try {
+    data = JSON.parse(res.body);
+  } catch {
+    // A proxy error page rather than the API — say something useful.
+    if (res.status >= 400) throw new ApiError(res.status, `Upload failed (${res.status})`);
+  }
+
+  if (res.status >= 400) throw new ApiError(res.status, data.error ?? "Upload failed");
   return data as { url: string };
 }
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useNavigation } from "@react-navigation/native";
 import { api, uploadPhoto, useAction, useQuery } from "../api";
 import { clearBuffer, useTripTracker } from "../tracker";
 import { ago, time } from "../format";
@@ -16,6 +17,7 @@ import EmergencySheet from "./EmergencySheet";
  * length in a parked bus.
  */
 export default function DriverTrip() {
+  const navigation = useNavigation<any>();
   // Every hook runs before any early return — React matches hooks by call order,
   // and a `return` above one of them is React error #310, not a subtle bug.
   const { data, loading, error, reload } = useQuery<any>("/driver/my-bus");
@@ -76,7 +78,14 @@ export default function DriverTrip() {
         </View>
 
         <View style={s.metrics}>
-          <Metric icon={<IconUsers size={16} color={colors.slate400} />} label="Students" value={data?.studentCount ?? 0} />
+          {/* Tapping the count is the obvious gesture, and it used to do
+              nothing. It now opens the roster with each child's status. */}
+          <Metric
+            icon={<IconUsers size={16} color={colors.slate400} />}
+            label="Students"
+            value={data?.studentCount ?? 0}
+            onPress={() => navigation.navigate("Students")}
+          />
           <Metric icon={<IconPin size={16} color={colors.slate400} />} label="Stops" value={route?.stops?.length ?? 0} />
           <Metric icon={<IconClock size={16} color={colors.slate400} />} label="Started" value={trip ? time(trip.startedAt) : "—"} />
         </View>
@@ -292,12 +301,22 @@ export function GpsPanel({ gps }: { gps: ReturnType<typeof useTripTracker> }) {
   );
 }
 
-const Metric = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) => (
-  <View style={{ flex: 1, alignItems: "center" }}>
+const Metric = ({
+  icon, label, value, onPress,
+}: {
+  icon: React.ReactNode; label: string; value: React.ReactNode; onPress?: () => void;
+}) => (
+  <Pressable
+    onPress={onPress}
+    disabled={!onPress}
+    style={({ pressed }) => [{ flex: 1, alignItems: "center" }, pressed && onPress && { opacity: 0.6 }]}
+  >
     {icon}
-    <T size={16} weight="700" style={{ marginTop: 4 }}>{value}</T>
-    <Muted size={11}>{label}</Muted>
-  </View>
+    <T size={16} weight="700" style={{ marginTop: 4 }} color={onPress ? colors.brand600 : colors.slate900}>
+      {value}
+    </T>
+    <Muted size={11}>{onPress ? `${label} ›` : label}</Muted>
+  </Pressable>
 );
 
 const s = StyleSheet.create({

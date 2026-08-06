@@ -36,14 +36,20 @@ export default function AuthLayout({ children, footer }: { children: ReactNode; 
     <Shield style={{ flex: 1 }}>
       <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Android needs a behavior too. With `undefined` the keyboard simply
+            covered the lower fields — the OTP box on this very screen — and
+            there was no way to see what you were typing. "height" is the one
+            that cooperates with edge-to-edge; "padding" fights it. */}
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <ScrollView
             contentContainerStyle={s.body}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            // Scrolling with the keyboard up must not dismiss it mid-typing.
+            keyboardDismissMode="none"
           >
             <View style={s.brand}>
               <Mark />

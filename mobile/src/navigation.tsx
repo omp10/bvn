@@ -26,6 +26,7 @@ import DriverTrip from "./screens/DriverTrip";
 import DriverLive from "./screens/DriverLive";
 import DriverHistory from "./screens/DriverHistory";
 import AttendantRoster from "./screens/AttendantRoster";
+import DriverStudents from "./screens/DriverStudents";
 import Overview from "./screens/Overview";
 import SchoolLive from "./screens/SchoolLive";
 import OwnerFleet from "./screens/OwnerFleet";
@@ -52,6 +53,7 @@ const TABS: Record<string, TabDef[]> = {
   ],
   driver: [
     { name: "Trip", title: "Today's trip", component: DriverTrip, icon: IconBus },
+    { name: "Students", title: "Students", component: DriverStudents, icon: IconUsers },
     { name: "Live", title: "Live map", component: DriverLive, icon: IconMap },
     { name: "History", title: "My trips", component: DriverHistory, icon: IconHistory },
     { name: "Alerts", title: "Alerts", component: Alerts, icon: IconBell },

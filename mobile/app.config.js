@@ -81,6 +81,10 @@ module.exports = {
         backgroundColor: app.tint,
       },
       edgeToEdgeEnabled: true,
+      /* Pan the window so a focused field is never left under the keyboard.
+         "resize" is the Android default and does not reliably lift inputs that
+         sit inside a ScrollView, which is every form in this app. */
+      softwareKeyboardLayoutMode: "pan",
       /* Left at Android's default of refusing cleartext. The API is HTTPS with a
          real certificate, so anything trying to talk plain HTTP is a mistake and
          should fail loudly rather than quietly sending a session token in the
