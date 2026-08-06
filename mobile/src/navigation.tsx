@@ -8,6 +8,7 @@ import {
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "./auth";
+import { useBrand } from "./brand";
 import { useNotificationTaps } from "./push";
 import { colors, VARIANT } from "./theme";
 import { Button, Loading, Muted, Screen, T } from "./ui";
@@ -96,6 +97,7 @@ const theme = {
 };
 
 function Tabs({ role }: { role: string }) {
+  const brand = useBrand();
   /* An unrecognised role gets the two tabs that need no role-specific endpoint.
      Falling back to the parent tabs would fetch /parent/children as a driver and
      show a permission error where a screen should be. */
@@ -107,7 +109,7 @@ function Tabs({ role }: { role: string }) {
         headerStyle: { backgroundColor: colors.white },
         headerTitleStyle: { fontWeight: "700", fontSize: 17, color: colors.slate900 },
         headerShadowVisible: false,
-        tabBarActiveTintColor: colors.brand600,
+        tabBarActiveTintColor: brand.primary,
         tabBarInactiveTintColor: colors.slate400,
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarStyle: { borderTopColor: colors.slate200, height: 62, paddingTop: 6, paddingBottom: 8 },

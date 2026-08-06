@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api, useAction, usePolling, useQuery } from "../api";
 import { useSocket, useTripRoom } from "../socket";
+import { useAuth } from "../auth";
 import { ago, classOf, time } from "../format";
+import { metresBetween, prettyDistance } from "../geo";
 import { colors, radius, shadow } from "../theme";
 import {
-  Alert, Avatar, Button, Card, EmptyState, Field, LiveDot, Loading, Modal, Muted, Screen, Shield, T,
+  Alert, Avatar, Button, Card, EmptyState, Field, LiveDot, Loading, Modal, Muted, Screen, SchoolLogo,
+  Shield, T,
 } from "../ui";
 import { IconBus, IconPhone, IconPin } from "../icons";
 import BusMap from "../BusMap";
@@ -23,6 +26,7 @@ type Child = {
 };
 
 export default function ParentHome() {
+  const { school } = useAuth();
   const children = useQuery<Child[]>("/parent/children");
   const [selectedId, setSelected] = useState<string | null>(null);
   const childId = selectedId ?? children.data?.[0]?._id ?? null;
@@ -78,13 +82,32 @@ export default function ParentHome() {
   // The live endpoint only names the stop while a trip runs. Before the bus sets
   // off, fall back to the child's own assignment — "not set" when a stop exists
   // is worse than saying nothing.
-  const assignedStop =
-    live.data?.myStop?.name ??
-    child.routeId?.stops?.find((s) => String(s._id) === String(child.pickupStopId))?.name ??
-    "Not set";
+  const stopNamed = (id?: string) =>
+    child.routeId?.stops?.find((s) => String(s._id) === String(id))?.name ?? "Not set";
+
+  const pickupStop = live.data?.myStop?.name ?? stopNamed(child.pickupStopId);
+  const dropStop = stopNamed(child.dropStopId);
+
+  /* FRD §19.4 — how far the bus still is, not just how long. Minutes are an
+     estimate the parent has to trust; metres are something they can see out of
+     the window. */
+  const myStop = live.data?.myStop;
+  const fix = live.data?.position;
+  const metresAway =
+    running && myStop?.lat != null && fix?.lat != null
+      ? metresBetween({ lat: fix.lat, lng: fix.lng }, { lat: myStop.lat, lng: myStop.lng })
+      : null;
 
   return (
     <Screen refreshing={live.loading} onRefresh={() => { children.reload(); live.reload(); }}>
+      {/* The school's own identity on the dashboard — FRD §17.3. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <SchoolLogo size={36} />
+        <T size={14} weight="700" style={{ flex: 1 }} numberOfLines={1}>
+          {school?.name ?? "BalVahini"}
+        </T>
+      </View>
+
       {children.data.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {children.data.map((c) => {
@@ -136,6 +159,7 @@ export default function ParentHome() {
                 {live.data.nextStop ? `Next stop: ${live.data.nextStop.name}` : "On the way"}
                 {" · "}
                 {live.data.stopsRemaining} stop{live.data.stopsRemaining === 1 ? "" : "s"} left
+                {metresAway != null ? ` · ${prettyDistance(metresAway)} away` : ""}
               </T>
               {live.data.gpsStale && (
                 // Silence is not the same as "the bus is here" — say when the
@@ -183,7 +207,12 @@ export default function ParentHome() {
           <Row label="Bus" value={child.vehicleId?.busNumber ?? "—"} />
           <Row label="Vehicle" value={child.vehicleId?.vehicleNumber ?? "—"} />
           <Row label="Route" value={child.routeId?.name ?? "—"} />
-          <Row label="Your stop" value={assignedStop} />
+          <Row label="Driver" value={live.data?.driver?.name ?? "—"} />
+          {/* FRD §17.4 names the attendant too — the person who actually marks
+              the child on and off the bus. */}
+          <Row label="Bus attendant" value={live.data?.vehicle?.attendantId?.name ?? "Not assigned"} />
+          <Row label="Pickup stop" value={pickupStop} />
+          <Row label="Drop stop" value={dropStop} />
         </View>
         <Button variant="secondary" size="sm" block style={{ marginTop: 14 }} onPress={() => setChanging(true)}>
           Request a route change

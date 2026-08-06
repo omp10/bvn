@@ -53,9 +53,15 @@ authRouter.post(
     const { devCode } = await issueOtp(req.body.schoolCode, req.body.phone);
     // ponytail: no SMS gateway yet, so development returns the code directly.
     // Wire the gateway here and drop devCode from the response.
+
+    /* Branding comes back before the OTP is entered, so the parent app can put
+       the school's own logo and colour on the sign-in screen — which is where
+       the FRD asks for it, and the last moment a parent can notice they typed
+       another school's code. Nothing here is secret: the same logo is already
+       served publicly from /uploads. */
     res.json({
       ok: true,
-      school: { name: school.name, code: school.code },
+      school: publicSchool(school as never),
       ...(devCode ? { devOtp: devCode } : {}),
     });
   })

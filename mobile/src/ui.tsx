@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   Modal as RNModal,
   Pressable,
   RefreshControl,
@@ -17,7 +18,8 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, radius, shadow, shieldGradient } from "./theme";
+import { colors, radius, shadow } from "./theme";
+import { useBrand } from "./brand";
 import { initials, titleCase } from "./format";
 
 /* ── Text ──────────────────────────────────────────────────────────── */
@@ -120,8 +122,14 @@ export function Button({
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const brand = useBrand();
   const off = disabled || loading;
   const height = size === "sm" ? 36 : size === "lg" ? 54 : 46;
+
+  // Only the primary action carries the school's colour. A danger button that
+  // turned green because a school picked green would be a genuine hazard.
+  const fill = variant === "primary" ? brand.primary : BUTTON_FILL[variant];
+  const ink = variant === "ghost" ? brand.primary : BUTTON_TEXT[variant];
 
   return (
     <Pressable
@@ -132,7 +140,7 @@ export function Button({
         s.btn,
         {
           height,
-          backgroundColor: BUTTON_FILL[variant],
+          backgroundColor: fill,
           borderWidth: variant === "secondary" ? 1 : 0,
           borderColor: colors.slate300,
           opacity: off ? 0.5 : pressed ? 0.85 : 1,
@@ -143,12 +151,12 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={BUTTON_TEXT[variant]} size="small" />
+        <ActivityIndicator color={ink} size="small" />
       ) : (
         <T
           weight="700"
           size={size === "sm" ? 13 : size === "lg" ? 16 : 15}
-          color={BUTTON_TEXT[variant]}
+          color={ink}
         >
           {children}
         </T>
@@ -295,17 +303,56 @@ export const Divider = () => <View style={{ height: 1, backgroundColor: colors.s
 
 /* ── Screen chrome ─────────────────────────────────────────────────── */
 
-/** The shield gradient, used for headers and hero cards. */
-export const Shield = ({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) => (
-  <LinearGradient
-    colors={shieldGradient}
-    start={{ x: 0, y: 0 }}
-    end={{ x: 1, y: 1 }}
-    style={style}
-  >
-    {children}
-  </LinearGradient>
-);
+/**
+ * The shield gradient, used for headers and hero cards. Takes the school's own
+ * colour when one is configured — this is the surface where branding reads.
+ */
+export const Shield = ({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) => {
+  const { gradient } = useBrand();
+  return (
+    <LinearGradient
+      colors={gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={style}
+    >
+      {children}
+    </LinearGradient>
+  );
+};
+
+/** A school's logo, falling back to the BalVahini mark when none is set. */
+export function SchoolLogo({ size = 44, onDark }: { size?: number; onDark?: boolean }) {
+  const { logoUrl, schoolName, appName } = useBrand();
+
+  if (logoUrl) {
+    return (
+      <Image
+        source={{ uri: logoUrl }}
+        style={{ width: size, height: size, borderRadius: radius.sm }}
+        resizeMode="contain"
+        accessibilityLabel={`${schoolName ?? appName} logo`}
+      />
+    );
+  }
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: onDark ? "rgba(255,255,255,0.2)" : colors.brand50,
+      }}
+    >
+      <T size={size * 0.4} weight="800" color={onDark ? colors.white : colors.brand600}>
+        {(schoolName ?? appName).slice(0, 1).toUpperCase()}
+      </T>
+    </View>
+  );
+}
 
 /** Every tab's outer wrapper: scrolls, breathes, and clears the tab bar. */
 export function Screen({

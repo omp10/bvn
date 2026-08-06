@@ -4,10 +4,11 @@ import Constants from "expo-constants";
 import { api, useAction } from "../api";
 import { ROLE_LABEL, useAuth } from "../auth";
 import { colors, radius, VARIANT } from "../theme";
+import { useBrand } from "../brand";
 import {
-  Alert, Avatar, Button, Card, Divider, Field, Modal, Muted, Screen, T,
+  Alert, Avatar, Button, Card, Divider, Field, Modal, Muted, Screen, SchoolLogo, T,
 } from "../ui";
-import { IconPhone, IconSchool, IconShield } from "../icons";
+import { IconPhone, IconShield } from "../icons";
 
 /**
  * Account screen.
@@ -18,6 +19,7 @@ import { IconPhone, IconSchool, IconShield } from "../icons";
  */
 export default function Profile() {
   const { user, school, signOut } = useAuth();
+  const { appName } = useBrand();
   const [changing, setChanging] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
 
@@ -39,9 +41,7 @@ export default function Profile() {
       {!!school && (
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View style={s.icon}>
-              <IconSchool size={20} color={colors.brand600} />
-            </View>
+            <SchoolLogo size={40} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <T size={15} weight="700" numberOfLines={1}>{school.name}</T>
               <Muted size={11}>School code {school.code}</Muted>
@@ -74,7 +74,7 @@ export default function Profile() {
       </Button>
 
       <View style={{ alignItems: "center", gap: 2, paddingTop: 4 }}>
-        <Muted size={11}>BalVahini · Safe Journeys, Brighter Futures</Muted>
+        <Muted size={11}>{appName} · Safe Journeys, Brighter Futures</Muted>
         <Muted size={11}>Version {Constants.expoConfig?.version ?? "1.0.0"}</Muted>
       </View>
 

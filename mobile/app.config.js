@@ -95,12 +95,25 @@ module.exports = {
               "FOREGROUND_SERVICE_LOCATION",
               "CAMERA",
             ]
-          : ["INTERNET"],
+          : // The parent app's camera is for the school QR code and nothing else.
+            ["INTERNET", "CAMERA"],
     },
     plugins: [
       [
         "expo-notifications",
         { icon: "./assets/android-icon-monochrome.png", color: app.tint },
+      ],
+      [
+        "expo-camera",
+        {
+          // Both apps point a camera at something: a school's QR code for
+          // parents, the driver's own face at check-in.
+          cameraPermission:
+            VARIANT === "parent"
+              ? "BalVahini reads your school's QR code so you do not have to type the school code."
+              : "BalVahini needs the camera for your check-in photo.",
+          recordAudioAndroid: false,
+        },
       ],
       ...(VARIANT === "staff" ? staffPlugins : []),
     ],
