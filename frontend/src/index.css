@@ -56,6 +56,20 @@
   }
   .no-scrollbar::-webkit-scrollbar { display: none; }
 
+  /* The sidebar's own bar: thin, rounded, and translucent white so it reads as
+     part of the gradient rather than a native control bolted onto it. */
+  .slim-scrollbar-light {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.3) transparent;
+  }
+  .slim-scrollbar-light::-webkit-scrollbar { width: 6px; }
+  .slim-scrollbar-light::-webkit-scrollbar-track { background: transparent; }
+  .slim-scrollbar-light::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.3);
+    border-radius: 999px;
+  }
+  .slim-scrollbar-light::-webkit-scrollbar-thumb:hover { background-color: rgb(255 255 255 / 0.5); }
+
   /* Keeps the affordance on long tables, without the chunky default bar. */
   .slim-scrollbar {
     scrollbar-width: thin;
