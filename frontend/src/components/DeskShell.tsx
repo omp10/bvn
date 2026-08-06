@@ -38,8 +38,16 @@ export default function DeskShell({ nav, children }: { nav: NavItem[]; children:
     </nav>
   );
 
+  /* On a desktop the shell owns the viewport and the two columns scroll
+     independently: the sidebar was `static` inside a `min-h-screen` row, so the
+     document scrolled and took the nav with it. The school office has fourteen
+     nav items — taller than most laptop screens — so the sidebar needs its own
+     scroll as well, not just a fixed position.
+
+     Mobile keeps document scrolling; there the sidebar is a drawer that is
+     already full-height. */
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="min-h-screen lg:flex lg:h-screen lg:overflow-hidden">
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center gap-3 bg-shield px-4 py-3 text-white lg:hidden">
         <button onClick={() => setOpen((v) => !v)} aria-label="Menu" className="rounded p-1 hover:bg-white/10">
@@ -52,7 +60,7 @@ export default function DeskShell({ nav, children }: { nav: NavItem[]; children:
 
       <aside
         className={cx(
-          "bg-shield fixed inset-y-0 left-0 z-40 flex w-64 flex-col p-4 transition-transform lg:static lg:translate-x-0",
+          "bg-shield fixed inset-y-0 left-0 z-40 flex w-64 flex-col p-4 transition-transform lg:static lg:h-screen lg:shrink-0 lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -61,9 +69,11 @@ export default function DeskShell({ nav, children }: { nav: NavItem[]; children:
         </div>
         <Tagline className="mb-6 px-1 text-white/50" />
 
-        {links}
+        {/* min-h-0 is what actually lets a flex child scroll — without it the
+            nav grows to its content and pushes the account block off-screen. */}
+        <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">{links}</div>
 
-        <div className="mt-auto border-t border-white/15 pt-3">
+        <div className="mt-4 border-t border-white/15 pt-3">
           <div className="mb-2 flex items-center gap-2.5 px-1">
             <Avatar name={user.name} className="h-9 w-9 bg-white/20 text-white" />
             <div className="min-w-0 text-sm">
@@ -82,7 +92,7 @@ export default function DeskShell({ nav, children }: { nav: NavItem[]; children:
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 p-4 lg:p-8">
+      <main className="min-w-0 flex-1 p-4 lg:h-screen lg:overflow-y-auto lg:p-8">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>
