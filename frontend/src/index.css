@@ -48,6 +48,29 @@
   .bg-shield {
     background-image: linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 45%, var(--color-leaf-600) 100%);
   }
+  /* Scrolls, but never shows the bar. Used on the sidebar, where a native
+     scrollbar sits on the gradient and looks like a crack down the panel. */
+  .no-scrollbar {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* old Edge */
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* Keeps the affordance on long tables, without the chunky default bar. */
+  .slim-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+  }
+  .slim-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+  .slim-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .slim-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .slim-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgb(148 163 184); background-clip: content-box; }
+
   .safe-bottom {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
   }

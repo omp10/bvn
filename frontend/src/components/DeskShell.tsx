@@ -71,7 +71,7 @@ export default function DeskShell({ nav, children }: { nav: NavItem[]; children:
 
         {/* min-h-0 is what actually lets a flex child scroll — without it the
             nav grows to its content and pushes the account block off-screen. */}
-        <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">{links}</div>
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">{links}</div>
 
         <div className="mt-4 border-t border-white/15 pt-3">
           <div className="mb-2 flex items-center gap-2.5 px-1">
@@ -92,7 +92,7 @@ export default function DeskShell({ nav, children }: { nav: NavItem[]; children:
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 p-4 lg:h-screen lg:overflow-y-auto lg:p-8">
+      <main className="slim-scrollbar min-w-0 flex-1 p-4 lg:h-screen lg:overflow-y-auto lg:p-8">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>
