@@ -1,0 +1,32 @@
+{
+  "cli": { "version": ">= 5.0.0", "appVersionSource": "local" },
+  "build": {
+    "base": {
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_API_URL": "https://balvahini.com" }
+    },
+    "parent": {
+      "extends": "base",
+      "distribution": "internal",
+      "env": { "APP_VARIANT": "parent" }
+    },
+    "staff": {
+      "extends": "base",
+      "distribution": "internal",
+      "env": { "APP_VARIANT": "staff" }
+    },
+    "parent-prod": {
+      "extends": "parent",
+      "android": { "buildType": "app-bundle" },
+      "distribution": "store",
+      "env": { "APP_VARIANT": "parent" }
+    },
+    "staff-prod": {
+      "extends": "staff",
+      "android": { "buildType": "app-bundle" },
+      "distribution": "store",
+      "env": { "APP_VARIANT": "staff" }
+    }
+  },
+  "submit": { "production": {} }
+}

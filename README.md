@@ -6,9 +6,13 @@ School bus tracking and transportation management, multi-tenant SaaS.
 ```
 balvahini/
   backend/    Express + TypeScript + MongoDB + Redis + Socket.IO
-  frontend/   React + Vite + TypeScript + Tailwind (wrapped as an APK later)
+  frontend/   React + Vite + TypeScript + Tailwind — the web app, every role
+  mobile/     Expo + React Native — two Android apps, parent and staff
   deploy/     nginx config + deploy script
 ```
+
+The web app serves everyone. The phone apps exist for the two roles that are
+*on* the bus rather than at a desk — see [mobile/README.md](mobile/README.md).
 
 ## Running it
 
@@ -28,6 +32,16 @@ cd frontend && npm run dev
 
 - API → http://localhost:4000
 - Web → http://localhost:5174 *(5173 is taken by another project on this machine)*
+
+The phone apps are optional and separate:
+
+```bash
+cd mobile && npm start
+```
+
+```bash
+cd mobile && npm run start:staff
+```
 
 ## Demo logins
 
@@ -258,7 +272,8 @@ recorded in the activity log.
 
 ## Not built yet
 
-SMS, WhatsApp and FCM delivery are stubs — OTPs return `123456` in development
-and notifications are stored and pushed over the socket but not delivered to
-devices. The APK is phase two: a Flutter WebView around this web app, which
-needs geolocation permission granted in the WebView and HTTPS hosting.
+SMS and WhatsApp delivery are stubs — OTPs return `123456` in development.
+
+Push now reaches real devices: `notify()` records the row, emits on the socket,
+and sends through Expo's relay to FCM. A build still needs an FCM key on the
+Expo project before a standalone APK receives anything.
