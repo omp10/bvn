@@ -9,7 +9,8 @@ import { Vehicle } from "../../models/vehicle.model.js";
 import { emitToSchool, emitToTrip } from "../../realtime/socket.js";
 import { clearLivePosition, setLivePosition } from "../../lib/redis.js";
 import { messages, notify } from "../notifications/notification.service.js";
-import { latestByTime, stopProgress, type Stop } from "./trip.progress.js";
+import { Attendance } from "../../models/attendance.model.js";
+import { atSchool, delayMinutesAt, latestByTime, stopProgress, type Stop } from "./trip.progress.js";
 
 export const todayKey = (d = new Date()): string => d.toISOString().slice(0, 10);
 
@@ -51,7 +52,13 @@ export async function startTrip(driverId: string, type: TripType, schoolId: stri
       startedAt: new Date(),
       startSelfieUrl: selfieUrl,
       selfieAt: selfieUrl ? new Date() : undefined,
-      timeline: [{ event: "trip_started", at: new Date() }],
+      /* An evening trip leaving the school *is* the return journey, so the
+         timeline records both rather than inventing a second start event the
+         driver would have to press. FRD §20.5. */
+      timeline:
+        type === "evening"
+          ? [{ event: "trip_started", at: new Date() }, { event: "return_started", at: new Date() }]
+          : [{ event: "trip_started", at: new Date() }],
     });
 
     await Vehicle.updateOne({ _id: vehicle._id }, { status: "running" });
@@ -63,8 +70,8 @@ export async function startTrip(driverId: string, type: TripType, schoolId: stri
 
     await notify({
       userIds: students.map((s) => s.parentId),
-      ...messages.tripStarted(label),
-      type: "trip_started",
+      ...(type === "evening" ? messages.returnStarted(label) : messages.tripStarted(label)),
+      type: type === "evening" ? "return_started" : "trip_started",
       data: { tripId: String(trip._id), vehicleId: String(vehicle._id) },
       schoolId,
     });
@@ -205,14 +212,20 @@ async function applyStopProgress(
   trip.currentStopIndex = progress.currentStopIndex;
 
   if (progress.reached) {
+    const arrivedAt = new Date();
     trip.timeline.push({
       event: "stop_reached",
       stopId: progress.reached._id,
       stopName: progress.reached.name,
-      at: new Date(),
+      at: arrivedAt,
     } as never);
     emitToTrip(String(trip._id), "trip:stop_reached", { stopName: progress.reached.name });
+
+    await recordDelay(trip, progress.reached, arrivedAt, schoolId);
+    await announceDeparture(trip, stops, progress.currentStopIndex, progress.reached, schoolId);
   }
+
+  await recordSchoolArrival(trip, position, schoolId);
 
   if (progress.approaching) {
     const { stop, etaMinutes } = progress.approaching;
@@ -239,5 +252,148 @@ async function applyStopProgress(
         schoolId,
       });
     }
+  }
+}
+
+/* ── FRD §19.6 and §24.1 ─────────────────────────────────────────────────
+   Everything below runs off a stop arrival, so it fires at most once per stop
+   rather than on every GPS fix. */
+
+/** Minutes late before parents are told, so normal traffic stays quiet. */
+const DELAY_ALERT_MINUTES = 10;
+
+/** How long before the same delay is worth mentioning again. */
+const DELAY_REPEAT_MS = 30 * 60_000;
+
+/**
+ * Records how far behind the timetable the bus is, and says so once it stops
+ * being ordinary traffic.
+ *
+ * The number is kept on every arrival; only the notification is throttled. A
+ * school watching the live map wants the current figure, not the last one that
+ * happened to cross the threshold.
+ */
+async function recordDelay(
+  trip: InstanceType<typeof Trip>,
+  stop: Stop,
+  arrivedAt: Date,
+  schoolId: string
+) {
+  const minutes = delayMinutesAt(stop, trip.type as "morning" | "evening", trip.tripDate, arrivedAt);
+  if (minutes === null) return; // No timetable on this stop — nothing to be late against.
+
+  trip.delayMinutes = minutes;
+  if (minutes < DELAY_ALERT_MINUTES) return;
+
+  const last = trip.delayNotifiedAt ? new Date(trip.delayNotifiedAt).getTime() : 0;
+  if (Date.now() - last < DELAY_REPEAT_MS) return;
+  trip.delayNotifiedAt = new Date();
+
+  const [vehicle, students] = await Promise.all([
+    Vehicle.findById(trip.vehicleId).select("busNumber vehicleNumber").lean(),
+    Student.find({ vehicleId: trip.vehicleId, active: true }).select("parentId").lean(),
+  ]);
+
+  await notify({
+    userIds: students.map((s) => s.parentId),
+    ...messages.tripDelayed(vehicle?.busNumber ?? vehicle?.vehicleNumber ?? "The bus", minutes),
+    type: "trip_delayed",
+    data: { tripId: String(trip._id), delayMinutes: minutes },
+    schoolId,
+  });
+}
+
+/**
+ * "Bus left the previous stop" — FRD §24.1.
+ *
+ * Only the parents waiting at the *next* stop hear it. Telling all 60 families
+ * every time the bus pulls away from any stop is how an app gets muted, and the
+ * one family it actually concerns is the one it is now driving towards.
+ */
+async function announceDeparture(
+  trip: InstanceType<typeof Trip>,
+  stops: Stop[],
+  nextIndex: number,
+  leftStop: Stop,
+  schoolId: string
+) {
+  const nextStop = stops[nextIndex];
+  if (!nextStop) return; // That was the last stop; the school arrival covers it.
+
+  const field = trip.type === "morning" ? "pickupStopId" : "dropStopId";
+  const students = await Student.find({
+    vehicleId: trip.vehicleId,
+    active: true,
+    [field]: nextStop._id,
+  })
+    .select("parentId")
+    .lean();
+  if (!students.length) return;
+
+  const vehicle = await Vehicle.findById(trip.vehicleId).select("busNumber vehicleNumber").lean();
+  await notify({
+    userIds: students.map((s) => s.parentId),
+    ...messages.busLeftStop(vehicle?.busNumber ?? vehicle?.vehicleNumber ?? "The bus", leftStop.name),
+    type: "bus_left_stop",
+    data: { tripId: String(trip._id), stopName: leftStop.name },
+    schoolId,
+  });
+}
+
+/**
+ * Reaching the school gate — FRD §20.5, §21.3 and §24.1.
+ *
+ * The school is not on the route's stop list, so proximity to the school's own
+ * recorded location is what detects this. A school with no location configured
+ * simply never fires it, which is why `atSchool` returns false rather than
+ * guessing.
+ *
+ * On a morning run this also tells each parent their own child reached school —
+ * scoped to children actually marked boarded, because a child marked absent did
+ * not arrive on this bus and their parent must not be told they did.
+ */
+async function recordSchoolArrival(
+  trip: InstanceType<typeof Trip>,
+  position: Point,
+  schoolId: string
+) {
+  if (trip.type !== "morning") return;
+  if (trip.timeline.some((entry) => entry.event === "school_arrived")) return;
+
+  const school = await School.findById(schoolId).select("location").lean();
+  if (!atSchool(position, school?.location)) return;
+
+  const at = new Date();
+  trip.timeline.push({ event: "school_arrived", at } as never);
+  emitToTrip(String(trip._id), "trip:school_arrived", { tripId: String(trip._id), at });
+  emitToSchool(schoolId, "trip:school_arrived", { tripId: String(trip._id) });
+
+  const [vehicle, boarded] = await Promise.all([
+    Vehicle.findById(trip.vehicleId).select("busNumber vehicleNumber").lean(),
+    Attendance.find({ tripId: trip._id, event: "boarded" }).select("studentId").lean(),
+  ]);
+  const label = vehicle?.busNumber ?? vehicle?.vehicleNumber ?? "The bus";
+
+  const students = await Student.find({ _id: { $in: boarded.map((b) => b.studentId) } })
+    .select("name parentId")
+    .lean();
+
+  // One "reached school" per bus for the office, one per child for the parent.
+  await notify({
+    userIds: students.map((s) => s.parentId),
+    ...messages.schoolArrived(label),
+    type: "school_arrived",
+    data: { tripId: String(trip._id) },
+    schoolId,
+  });
+
+  for (const student of students) {
+    await notify({
+      userIds: [student.parentId],
+      ...messages.childEnteredSchool(student.name),
+      type: "child_entered_school",
+      data: { tripId: String(trip._id), studentId: String(student._id) },
+      schoolId,
+    });
   }
 }

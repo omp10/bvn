@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { latestByTime, stopProgress, type Stop } from "./trip.progress.js";
+import { atSchool, delayMinutesAt, latestByTime, stopProgress, type Stop } from "./trip.progress.js";
 
 // Two stops roughly 1.1 km apart in Pune.
 const stops: Stop[] = [
@@ -65,4 +65,38 @@ test("latestByTime picks the newest fix from an out-of-order buffer", () => {
   ];
   assert.equal(latestByTime(points)?.lat, 3);
   assert.equal(latestByTime([]), undefined);
+});
+
+/* ── Lateness, FRD §19.6 ─────────────────────────────────────────────── */
+
+test("delay is measured against the stop's own scheduled time", () => {
+  const stop = { pickupTime: "07:30", dropTime: "15:10" };
+  const at = (h: number, m: number) => new Date(2026, 7, 6, h, m);
+
+  assert.equal(delayMinutesAt(stop, "morning", "2026-08-06", at(7, 42)), 12);
+  assert.equal(delayMinutesAt(stop, "morning", "2026-08-06", at(7, 30)), 0);
+  assert.equal(delayMinutesAt(stop, "evening", "2026-08-06", at(15, 25)), 15);
+});
+
+test("running early is reported, not rounded away to on-time", () => {
+  // A bus ten minutes ahead is a child left at the kerb, not good news.
+  const stop = { pickupTime: "07:30" };
+  assert.equal(delayMinutesAt(stop, "morning", "2026-08-06", new Date(2026, 7, 6, 7, 20)), -10);
+});
+
+test("no schedule means no answer, never a false on-time", () => {
+  assert.equal(delayMinutesAt({}, "morning", "2026-08-06", new Date()), null);
+  // A morning trip must not silently fall back to the drop time.
+  assert.equal(delayMinutesAt({ dropTime: "15:10" }, "morning", "2026-08-06", new Date()), null);
+  assert.equal(delayMinutesAt({ pickupTime: "7:30" }, "morning", "2026-08-06", new Date()), null);
+  assert.equal(delayMinutesAt({ pickupTime: "07:30" }, "morning", "not-a-date", new Date()), null);
+});
+
+test("the school gate is its own arrival check", () => {
+  const school = { lat: 18.5204, lng: 73.8567 };
+  assert.equal(atSchool({ lat: 18.5204, lng: 73.8567 }, school), true);
+  // ~2 km away.
+  assert.equal(atSchool({ lat: 18.5384, lng: 73.8567 }, school), false);
+  // A school with no location on record can never "arrive".
+  assert.equal(atSchool({ lat: 18.5204, lng: 73.8567 }, null), false);
 });

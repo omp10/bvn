@@ -3,9 +3,12 @@ import { tenantField, tenantPlugin } from "./plugins/tenant.js";
 
 export const NOTIFICATION_TYPES = [
   "trip_started",
+  "bus_left_stop",
   "bus_approaching",
   "child_boarded",
   "school_arrived",
+  "child_entered_school",
+  "return_started",
   "child_dropped",
   "trip_completed",
   "trip_delayed",

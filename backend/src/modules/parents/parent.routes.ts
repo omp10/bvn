@@ -87,6 +87,10 @@ parentRouter.get(
         startedAt: trip.startedAt,
         timeline: trip.timeline,
       },
+      /* FRD §19.6 lists "Delayed" as a trip status. It is kept as a property of
+         a running trip rather than a fourth status value — see the trip model. */
+      delayMinutes: trip.delayMinutes ?? 0,
+      delayed: (trip.delayMinutes ?? 0) >= 10,
       vehicle,
       driver: vehicle?.driverId ?? null,
       position: position ?? null,

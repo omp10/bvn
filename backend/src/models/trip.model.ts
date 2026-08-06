@@ -69,6 +69,14 @@ const tripSchema = new Schema(
     approachNotifiedStopIds: [Schema.Types.ObjectId],
     timeline: [timelineSchema],
 
+    /* Lateness against the timetable — FRD §19.6. Kept as a number on a running
+       trip rather than a fourth status: "delayed" is a property of a trip that
+       is still running, and making it a status would break the partial unique
+       index that allows exactly one running trip per vehicle, plus every
+       findOne({ status: "running" }) in the codebase. */
+    delayMinutes: { type: Number, default: 0 },
+    delayNotifiedAt: Date,
+
     stats: {
       pickedUp: { type: Number, default: 0 },
       dropped: { type: Number, default: 0 },

@@ -219,6 +219,7 @@ const BADGE_TONE: Record<string, [string, string]> = {
   completed: [colors.slate100, colors.slate600],
   cancelled: [colors.red50, colors.red600],
   open: [colors.amber50, colors.amber800],
+  delayed: [colors.sun100, colors.amber800],
 };
 
 export function Badge({ value }: { value?: string | null }) {

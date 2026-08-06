@@ -139,9 +139,11 @@ export default function ParentHome() {
             </T>
           </View>
           {running && (
-            <View style={s.livePill}>
-              <LiveDot color={colors.white} />
-              <T size={11} weight="700" color={colors.white}>Live</T>
+            <View style={[s.livePill, live.data?.delayed && { backgroundColor: "rgba(0,0,0,0.28)" }]}>
+              <LiveDot color={live.data?.delayed ? colors.sun400 : colors.white} />
+              <T size={11} weight="700" color={colors.white}>
+                {live.data?.delayed ? "Delayed" : "Live"}
+              </T>
             </View>
           )}
         </View>
@@ -161,6 +163,15 @@ export default function ParentHome() {
                 {live.data.stopsRemaining} stop{live.data.stopsRemaining === 1 ? "" : "s"} left
                 {metresAway != null ? ` · ${prettyDistance(metresAway)} away` : ""}
               </T>
+              {live.data?.delayed && (
+                // FRD §19.6 — a late bus is the thing a waiting parent most
+                // needs told, and it is not visible from an ETA alone.
+                <View style={s.staleNote}>
+                  <T size={12} color={colors.white}>
+                    Running about {live.data.delayMinutes} minutes behind the timetable.
+                  </T>
+                </View>
+              )}
               {live.data.gpsStale && (
                 // Silence is not the same as "the bus is here" — say when the
                 // fix is old rather than letting a stale dot imply it is fresh.

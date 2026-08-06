@@ -143,6 +143,7 @@ tripRouter.get(
           // A bus whose last fix is three minutes old is not "live" — say so
           // rather than showing a stale dot as if it were current.
           gpsStale: !lastPosition?.at || new Date(lastPosition.at).getTime() < stale,
+          delayed: (t.delayMinutes ?? 0) >= 10,
         };
       })
     );

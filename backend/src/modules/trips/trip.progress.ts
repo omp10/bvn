@@ -1,6 +1,15 @@
 import { distanceMeters, naiveEtaMinutes, type Point } from "../../lib/geo.js";
 
-export type Stop = { _id: unknown; name: string; lat: number; lng: number; sequence: number };
+export type Stop = {
+  _id: unknown;
+  name: string;
+  lat: number;
+  lng: number;
+  sequence: number;
+  /** "HH:MM", the time this stop is scheduled for. */
+  pickupTime?: string;
+  dropTime?: string;
+};
 
 export type Progress = {
   /** Index of the stop the bus is heading to, after applying any arrival. */
@@ -50,6 +59,54 @@ export function stopProgress(
   }
 
   return { currentStopIndex: index };
+}
+
+/**
+ * How late the bus was reaching a stop, in minutes — FRD §19.6.
+ *
+ * Negative means early, which is worth keeping: a bus running ten minutes ahead
+ * of the timetable is a child missing their pickup, not good news.
+ *
+ * Returns null when the stop has no scheduled time, because "on time" and "no
+ * timetable" are different answers and only one of them should light a warning.
+ *
+ * ponytail: the schedule is a wall-clock "HH:MM" with no timezone, so it is read
+ * in the server's local zone against the trip's own date. That is correct while
+ * a school and its server share a zone, which is every deployment today. It
+ * breaks the day one school runs in another zone — store an IANA zone on the
+ * school and pass it in here when that happens.
+ */
+export function delayMinutesAt(
+  stop: Pick<Stop, "pickupTime" | "dropTime">,
+  tripType: "morning" | "evening",
+  tripDate: string,
+  arrivedAt: Date
+): number | null {
+  const scheduled = tripType === "morning" ? stop.pickupTime : stop.dropTime;
+  if (!scheduled || !/^\d{4}-\d{2}-\d{2}$/.test(tripDate)) return null;
+
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(scheduled);
+  if (!match) return null;
+
+  const [year, month, day] = tripDate.split("-").map(Number);
+  const due = new Date(year, month - 1, day, Number(match[1]), Number(match[2]), 0, 0);
+
+  return Math.round((arrivedAt.getTime() - due.getTime()) / 60_000);
+}
+
+/**
+ * Has the bus arrived at the school gate? Same idea as a stop arrival, but the
+ * school is not on the route's stop list, so it needs its own check.
+ */
+export function atSchool(
+  position: Point,
+  // Deliberately loose: a school's location is optional in the schema, and the
+  // whole point of this function is to say "no" when it was never set.
+  school?: { lat?: number | null; lng?: number | null } | null,
+  radiusMeters = 150
+): boolean {
+  if (school?.lat == null || school?.lng == null) return false;
+  return distanceMeters(position, { lat: school.lat, lng: school.lng }) <= radiusMeters;
 }
 
 /**

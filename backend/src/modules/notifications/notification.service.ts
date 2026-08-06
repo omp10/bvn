@@ -65,6 +65,10 @@ export const messages = {
     title: "Bus has started",
     body: `${busNumber} has started its trip.`,
   }),
+  busLeftStop: (busNumber: string, stopName: string) => ({
+    title: "Bus on the move",
+    body: `${busNumber} has left ${stopName} and is heading to your stop.`,
+  }),
   busApproaching: (busNumber: string, minutes: number) => ({
     title: "Bus approaching",
     body: `${busNumber} is about ${minutes} minute${minutes === 1 ? "" : "s"} from your stop.`,
@@ -80,6 +84,18 @@ export const messages = {
   schoolArrived: (busNumber: string) => ({
     title: "Reached school",
     body: `${busNumber} has reached the school.`,
+  }),
+  childEnteredSchool: (name: string) => ({
+    title: "Arrived at school",
+    body: `${name} has reached school safely.`,
+  }),
+  returnStarted: (busNumber: string) => ({
+    title: "Return journey started",
+    body: `${busNumber} has left the school for the evening route.`,
+  }),
+  tripDelayed: (busNumber: string, minutes: number) => ({
+    title: "Bus running late",
+    body: `${busNumber} is about ${minutes} minute${minutes === 1 ? "" : "s"} behind schedule.`,
   }),
   tripCompleted: (busNumber: string) => ({
     title: "Trip completed",

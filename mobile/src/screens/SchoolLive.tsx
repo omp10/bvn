@@ -13,6 +13,8 @@ type LiveTrip = {
   type: string;
   gpsStale: boolean;
   lastPosition?: { lat: number; lng: number; at: string } | null;
+  delayed?: boolean;
+  delayMinutes?: number;
   stats?: { pickedUp?: number; dropped?: number };
   vehicleId?: { busNumber?: string; vehicleNumber?: string } | null;
   driverId?: { name?: string; phone?: string } | null;
@@ -84,11 +86,13 @@ export default function SchoolLive() {
                       difference between a parked bus and a dead phone. */}
                   {trip.gpsStale
                     ? `GPS ${ago(fix?.at)} — low signal or phone asleep`
-                    : `Reporting · ${trip.stats?.pickedUp ?? 0} picked up`}
+                    : trip.delayed
+                      ? `${trip.delayMinutes} min behind · ${trip.stats?.pickedUp ?? 0} picked up`
+                      : `Reporting · ${trip.stats?.pickedUp ?? 0} picked up`}
                 </Muted>
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
-                <Badge value={trip.gpsStale ? "open" : "running"} />
+                <Badge value={trip.gpsStale ? "open" : trip.delayed ? "delayed" : "running"} />
                 <Muted size={11}>{trip.type}</Muted>
               </View>
             </Pressable>
