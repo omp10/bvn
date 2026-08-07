@@ -6,6 +6,7 @@ import {
   Alert, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Stat, StatGrid, Table,
 } from "../../components/ui";
 import { IconBus, IconPlus, IconSchool, IconUsers, IconWallet } from "../../components/icons";
+import { UploadButton } from "../../components/Upload";
 
 type School = {
   _id: string; name: string; code: string; city?: string; status: string;
@@ -252,6 +253,43 @@ export function AdminSchoolDetail() {
       </StatGrid>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        {/* FRD §8.1. Until this existed a school could never have a logo, so the
+            branding the web app and both mobile apps already support had
+            nothing to show and everyone fell back to BalVahini blue. */}
+        <Card title="Branding" subtitle="Shown on this school's login screen, dashboards and apps">
+          <div className="flex items-center gap-4">
+            {school.branding?.logoUrl ? (
+              <img
+                src={school.branding.logoUrl}
+                alt={`${school.name} logo`}
+                className="h-16 w-16 rounded-lg object-contain ring-1 ring-slate-200"
+              />
+            ) : (
+              <span className="grid h-16 w-16 place-items-center rounded-lg bg-slate-100 text-xl font-bold text-slate-400">
+                {school.name?.[0] ?? "?"}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <UploadButton
+                path={`/uploads/school/${id}/logo`}
+                label={school.branding?.logoUrl ? "Replace logo" : "Upload logo"}
+                onDone={reload}
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Square PNG or SVG works best. Replacing deletes the old file.
+              </p>
+            </div>
+          </div>
+
+          <dl className="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
+            <Row label="App name" value={school.branding?.appName ?? school.name} />
+            <Row
+              label="Theme colour"
+              value={school.branding?.themeColor ?? "BalVahini default"}
+            />
+          </dl>
+        </Card>
+
         <Card title="Subscription">
           <dl className="space-y-3 text-sm">
             <Row label="Plan" value={titleCase(school.subscription?.plan ?? "—")} />

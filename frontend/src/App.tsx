@@ -24,6 +24,7 @@ import { SchoolStudents } from "./routes/school/Students";
 import SchoolSalaries from "./routes/school/Salaries";
 import SchoolStaffing from "./routes/school/Staffing";
 import SchoolTrips from "./routes/school/Trips";
+import SchoolAnnounce from "./routes/school/Announce";
 import { SchoolActivity, SchoolRoles } from "./routes/school/Roles";
 import { SchoolAlerts, SchoolReports, SchoolRequests, SchoolRoutes } from "./routes/school/Ops";
 import { FleetDashboard, FleetDrivers, FleetVehicles } from "./routes/fleet/Fleet";
@@ -59,6 +60,7 @@ const NAV: Record<Role, NavItem[]> = {
     { to: "/school/staffing", label: "Request buses/drivers", icon: IconPlus },
     { to: "/school/requests", label: "Route requests", icon: IconClock },
     { to: "/school/alerts", label: "Alerts", icon: IconAlert },
+    { to: "/school/announce", label: "Send announcement", icon: IconBell },
     { to: "/school/salaries", label: "Salaries", icon: IconWallet },
     { to: "/school/reports", label: "Reports", icon: IconChart },
     { to: "/school/roles", label: "Roles & staff", icon: IconShield },
@@ -142,6 +144,7 @@ export default function App() {
       <Route path="/school/staffing" element={guard("school_admin", <SchoolStaffing />)} />
       <Route path="/school/requests" element={guard("school_admin", <SchoolRequests />)} />
       <Route path="/school/alerts" element={guard("school_admin", <SchoolAlerts />)} />
+      <Route path="/school/announce" element={guard("school_admin", <SchoolAnnounce />)} />
       <Route path="/school/salaries" element={guard("school_admin", <SchoolSalaries />)} />
       <Route path="/school/reports" element={guard("school_admin", <SchoolReports />)} />
       <Route path="/school/roles" element={guard("school_admin", <SchoolRoles />)} />

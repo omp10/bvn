@@ -4,17 +4,20 @@ import { date, daysLeft } from "../../lib/format";
 import {
   Alert, Avatar, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Table, cx,
 } from "../../components/ui";
-import { IconCamera, IconPlus } from "../../components/icons";
+import { IconCamera, IconPlus, IconShield } from "../../components/icons";
+import { PhotoCell } from "../../components/Upload";
+import BusDocuments from "./BusDocuments";
 
 type Bus = {
   _id: string; busNumber: string; vehicleNumber: string; capacity: number; status: string;
+  documents?: { _id: string; type: string; number?: string; url?: string; expiresOn?: string }[];
   driverId?: { _id: string; name: string; licenseExpiry?: string };
   attendantId?: { _id: string; name: string };
   routeId?: { _id: string; name: string };
 };
 
 type Person = {
-  _id: string; name: string; phone: string; status: string;
+  _id: string; name: string; phone: string; status: string; photoUrl?: string | null;
   licenseNumber?: string; licenseExpiry?: string;
   assignedVehicle?: { busNumber?: string } | null;
 };
@@ -26,6 +29,8 @@ export function SchoolBuses() {
   const routes = useQuery<any[]>("/school/routes");
   const [adding, setAdding] = useState(false);
   const [crewFor, setCrewFor] = useState<Bus | null>(null);
+  const [docsForId, setDocsForId] = useState<string | null>(null);
+  const expiring = useQuery<any[]>("/school/buses/documents/expiring?days=30");
 
   return (
     <>
@@ -34,6 +39,30 @@ export function SchoolBuses() {
         subtitle={buses.data ? `${buses.data.length} in the fleet` : undefined}
         actions={<Button onClick={() => setAdding(true)}><IconPlus className="h-4 w-4" /> Add bus</Button>}
       />
+
+      {/* The Monday reminder job has always produced this list; nothing showed
+          it. An expiry nobody sees is an expiry nobody acts on. */}
+      {(expiring.data?.length ?? 0) > 0 && (
+        <Card className="mb-4 border-amber-300 bg-amber-50/50">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-700">
+              <IconShield className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="font-semibold text-amber-800">
+                {expiring.data!.length} document{expiring.data!.length === 1 ? "" : "s"} expiring within 30 days
+              </div>
+              <ul className="mt-1 space-y-0.5 text-sm text-amber-700">
+                {expiring.data!.slice(0, 5).map((d, i) => (
+                  <li key={i}>
+                    {d.busNumber ?? d.vehicleNumber} — {d.type} expires {date(d.expiresOn)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card padded={false}>
         <Table
@@ -69,6 +98,24 @@ export function SchoolBuses() {
             },
             { header: "Status", cell: (b) => <Badge value={b.status} /> },
             {
+              header: "Documents",
+              secondary: true,
+              cell: (b) => {
+                const n = b.documents?.length ?? 0;
+                return (
+                  <button
+                    onClick={() => setDocsForId(b._id)}
+                    className={cx(
+                      "text-sm font-medium hover:underline",
+                      n ? "text-brand-600" : "text-amber-600"
+                    )}
+                  >
+                    {n ? `${n} on file` : "None — add"}
+                  </button>
+                );
+              },
+            },
+            {
               header: "",
               align: "right",
               cell: (b) => (
@@ -85,6 +132,17 @@ export function SchoolBuses() {
       </Card>
 
       <AddBus open={adding} onClose={() => setAdding(false)} onDone={buses.reload} />
+
+      {/* Held by id, not by value: the modal then reads from the reloaded list
+          and shows an upload the moment it lands. */}
+      <BusDocuments
+        bus={buses.data?.find((b) => b._id === docsForId) ?? null}
+        onClose={() => setDocsForId(null)}
+        onChanged={() => {
+          buses.reload();
+          expiring.reload();
+        }}
+      />
 
       <CrewModal
         bus={crewFor}
@@ -304,12 +362,30 @@ export function SchoolPeople({ kind }: { kind: "drivers" | "attendants" }) {
               header: "Name",
               cell: (p) => (
                 <div className="flex items-center gap-3">
-                  <Avatar name={p.name} />
+                  {p.photoUrl ? (
+                    <img src={p.photoUrl} alt="" className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200" />
+                  ) : (
+                    <Avatar name={p.name} />
+                  )}
                   <div>
                     <div className="font-medium text-slate-900">{p.name}</div>
                     <div className="text-xs text-slate-500">{p.phone}</div>
                   </div>
                 </div>
+              ),
+            },
+            {
+              // Photos could only be set while creating someone; everyone added
+              // before that existed had no way to get one.
+              header: "Photo",
+              secondary: true,
+              cell: (p: Person) => (
+                <PhotoCell
+                  url={p.photoUrl}
+                  name={p.name}
+                  path={`/uploads/user/${p._id}/photo`}
+                  onDone={list.reload}
+                />
               ),
             },
             ...(isDriver

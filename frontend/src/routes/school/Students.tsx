@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, useAction, useQuery } from "../../lib/api";
+import { PhotoCell } from "../../components/Upload";
 import { classOf } from "../../lib/format";
 import {
   Alert, Avatar, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Select, Table,
@@ -12,6 +13,7 @@ type Student = {
   routeId?: { _id: string; name: string; stops?: Stop[] } | null;
   pickupStopId?: string; dropStopId?: string;
   parentId?: { name: string; phone: string } | null;
+  photoUrl?: string | null;
 };
 type Stop = { _id: string; name: string; sequence: number };
 
@@ -64,7 +66,11 @@ export function SchoolStudents() {
               header: "Student",
               cell: (s) => (
                 <div className="flex items-center gap-3">
-                  <Avatar name={s.name} />
+                  {s.photoUrl ? (
+                    <img src={s.photoUrl} alt="" className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200" />
+                  ) : (
+                    <Avatar name={s.name} />
+                  )}
                   <div>
                     <div className="font-medium text-slate-900">{s.name}</div>
                     <div className="text-xs text-slate-500">
@@ -72,6 +78,20 @@ export function SchoolStudents() {
                     </div>
                   </div>
                 </div>
+              ),
+            },
+            {
+              /* An attendant matching a face to a name on a crowded bus is the
+                 whole reason to keep these. */
+              header: "Photo",
+              secondary: true,
+              cell: (s: any) => (
+                <PhotoCell
+                  url={s.photoUrl}
+                  name={s.name}
+                  path={`/uploads/student/${s._id}/photo`}
+                  onDone={list.reload}
+                />
               ),
             },
             {

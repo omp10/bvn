@@ -14,7 +14,10 @@ type Vehicle = {
 };
 
 export function FleetDashboard() {
-  const { data } = useQuery<any>("/dashboard");
+  /* /owner/dashboard rather than the generic /dashboard: same figures plus
+     documentsExpiring, which is the one an owner is actually fined for. */
+  const { data } = useQuery<any>("/owner/dashboard");
+  const schools = useQuery<any[]>("/owner/schools");
   const assignments = useQuery<Vehicle[]>("/owner/assignments");
 
   return (
@@ -28,6 +31,30 @@ export function FleetDashboard() {
         <Stat label="Drivers" value={data?.drivers} tone="slate" icon={<IconUsers className="h-5 w-5" />}
           hint={data?.maintenanceDue ? `${data.maintenanceDue} services due` : undefined} />
       </StatGrid>
+
+      {(data?.documentsExpiring ?? 0) > 0 && (
+        <Card className="mt-4 border-amber-300 bg-amber-50/50">
+          <div className="text-sm font-semibold text-amber-800">
+            {data.documentsExpiring} vehicle document{data.documentsExpiring === 1 ? "" : "s"} expiring within 30 days
+          </div>
+          <p className="mt-1 text-sm text-amber-700">
+            Open a vehicle to upload the renewal before it lapses.
+          </p>
+        </Card>
+      )}
+
+      {(schools.data?.length ?? 0) > 0 && (
+        <Card className="mt-4" title="Schools you serve">
+          <div className="flex flex-wrap gap-2">
+            {schools.data!.map((sc: any) => (
+              <span key={sc._id} className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                {sc.name}
+                {sc.vehicles != null ? ` · ${sc.vehicles}` : ""}
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="mt-4" title="Current assignments" padded={false}>
         <Table
