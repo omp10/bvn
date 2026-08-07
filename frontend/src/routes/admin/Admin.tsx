@@ -281,13 +281,7 @@ export function AdminSchoolDetail() {
             </div>
           </div>
 
-          <dl className="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
-            <Row label="App name" value={school.branding?.appName ?? school.name} />
-            <Row
-              label="Theme colour"
-              value={school.branding?.themeColor ?? "BalVahini default"}
-            />
-          </dl>
+          <BrandingFields school={school} id={id!} onDone={reload} />
         </Card>
 
         <Card title="Subscription">
@@ -348,6 +342,59 @@ function SchoolQr({ schoolId }: { schoolId: string }) {
       <a href={src} download={`school-${schoolId}-qr.svg`} className="mt-1 text-xs font-semibold text-brand-600 hover:underline">
         Download for printing
       </a>
+    </div>
+  );
+}
+
+/**
+ * Theme colour and app name — FRD §8.1.
+ *
+ * The endpoint took all three from the start; only the logo had a control, so a
+ * school could never be anything but BalVahini blue. The colour reaches the web
+ * app and both mobile apps, which mix their own shades from this one value.
+ */
+function BrandingFields({ school, id, onDone }: { school: any; id: string; onDone: () => void }) {
+  const { busy, error, run } = useAction();
+  const [appName, setAppName] = useState<string>(school.branding?.appName ?? school.name ?? "");
+  const [themeColor, setThemeColor] = useState<string>(school.branding?.themeColor ?? "#1d4ed8");
+
+  const dirty =
+    appName !== (school.branding?.appName ?? school.name ?? "") ||
+    themeColor !== (school.branding?.themeColor ?? "#1d4ed8");
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+      <Alert>{error}</Alert>
+      <Field label="App name" value={appName} onChange={(e) => setAppName(e.target.value)} />
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-slate-700">Theme colour</span>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={themeColor}
+            onChange={(e) => setThemeColor(e.target.value)}
+            className="h-10 w-14 cursor-pointer rounded border border-slate-300"
+          />
+          <span className="font-mono text-sm text-slate-600">{themeColor}</span>
+        </div>
+      </label>
+      <Button
+        size="sm"
+        loading={busy}
+        disabled={!dirty}
+        onClick={() =>
+          void run(
+            () =>
+              api(`/super-admin/schools/${id}/branding`, {
+                method: "PATCH",
+                body: { appName: appName.trim() || undefined, themeColor },
+              }),
+            onDone
+          )
+        }
+      >
+        Save branding
+      </Button>
     </div>
   );
 }
