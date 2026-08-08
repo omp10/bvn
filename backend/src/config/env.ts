@@ -41,6 +41,18 @@ export const env = {
    */
   otpDevMode: process.env.OTP_DEV_MODE === "true" || process.env.NODE_ENV !== "production",
   otpTtlSeconds: Number(process.env.OTP_TTL_SECONDS ?? 300),
+
+  /**
+   * Rate limits, per window. Raised while a deployment is being tested and
+   * tightened from the environment for real traffic — a code change should not
+   * be needed to harden a running box.
+   */
+  rateLimits: {
+    api: Number(process.env.RATE_LIMIT_API ?? 1200),        // per minute
+    auth: Number(process.env.RATE_LIMIT_AUTH ?? 60),        // per 15 minutes
+    otp: Number(process.env.RATE_LIMIT_OTP ?? 30),          // per 10 minutes
+    tracking: Number(process.env.RATE_LIMIT_TRACKING ?? 240), // per minute
+  },
 };
 
 // A default signing secret in production would let anyone mint a super-admin
