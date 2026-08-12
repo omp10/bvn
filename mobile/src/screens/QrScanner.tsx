@@ -5,6 +5,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { schoolCodeFrom } from "../schoolCode";
 import { colors, radius } from "../theme";
+import { useBrand } from "../brand";
+import { str } from "../strings";
 import { Button, Muted, T } from "../ui";
 
 /**
@@ -25,6 +27,7 @@ export default function QrScanner({
 }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [problem, setProblem] = useState<string | null>(null);
+  const { appName } = useBrand();
 
   /* A camera fires the same barcode many times a second. Without this the
      parent's screen would fire onCode dozens of times and race the navigation
@@ -75,18 +78,18 @@ export default function QrScanner({
               <>
                 <View style={s.reticle} />
                 <T size={14} weight="600" color={colors.white} style={{ textAlign: "center" }}>
-                  Point the camera at the QR code on your school's circular
+                  {str.map.scanHint}
                 </T>
               </>
             ) : (
               <View style={{ paddingHorizontal: 32, gap: 12, alignItems: "center" }}>
                 <T size={17} weight="700" color={colors.white} style={{ textAlign: "center" }}>
-                  Camera access needed
+                  {str.map.cameraTitle}
                 </T>
                 <Muted size={13} style={{ color: "rgba(255,255,255,0.75)", textAlign: "center", lineHeight: 19 }}>
-                  BalVahini uses the camera only to read your school's QR code. Nothing is recorded.
+                  {str.map.cameraBody(appName)}
                 </Muted>
-                <Button onPress={() => void requestPermission()}>Allow camera</Button>
+                <Button onPress={() => void requestPermission()}>{str.map.cameraAllow}</Button>
               </View>
             )}
 
@@ -100,7 +103,7 @@ export default function QrScanner({
           </View>
 
           <Button variant="secondary" block onPress={close}>
-            Enter the code instead
+            {str.map.typeInstead}
           </Button>
         </SafeAreaView>
       </View>

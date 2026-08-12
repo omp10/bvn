@@ -24,7 +24,7 @@ import {
   colors, elevation, GUTTER, MAX_FONT_SCALE, motion, radius, space, tone, type, type TypeRole,
 } from "./theme";
 import { useBrand } from "./brand";
-import { useOnline } from "./api";
+import { assetUrl, useOnline } from "./api";
 import { initials, titleCase } from "./format";
 import { str } from "./strings";
 import { IconCheck, IconEye, IconEyeOff } from "./icons";
@@ -467,10 +467,16 @@ export const Avatar = ({
   size?: number;
   onDark?: boolean;
 }) => {
-  if (photoUrl) {
+  /* The API returns "/uploads/…", which is not something `Image` can fetch —
+     it needs the origin on the front. Resolved here rather than at each call
+     site so every avatar in the app is fixed by one guard; `assetUrl` leaves an
+     already-absolute URL alone, so passing either kind is safe. */
+  const uri = assetUrl(photoUrl);
+
+  if (uri) {
     return (
       <Image
-        source={{ uri: photoUrl }}
+        source={{ uri }}
         style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.slate200 }}
         accessibilityLabel={name}
       />

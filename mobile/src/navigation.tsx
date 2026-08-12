@@ -215,10 +215,9 @@ function WrongApp() {
   return (
     <Screen>
       <View style={{ paddingVertical: space(12), alignItems: "center", gap: space(2.5) }}>
-        <T role="heading">This is the wrong app</T>
+        <T role="heading">{str.wrongApp.title}</T>
         <Muted role="body" style={{ textAlign: "center" }}>
-          {user?.name}, your account is a {user?.role.replace("_", " ")} account. Install {wanted} and sign in
-          there instead.
+          {str.wrongApp.body(user?.name ?? "", user?.role.replace("_", " ") ?? "", wanted)}
         </Muted>
       </View>
       <Button variant="secondary" block onPress={signOut}>

@@ -9,10 +9,27 @@
 /** Digits only, with an Indian country code or leading zero removed. */
 export function normalisePhone(raw: string): string {
   let digits = raw.replace(/\D/g, "");
-  if (digits.length > 10 && digits.startsWith("91")) digits = digits.slice(2);
-  if (digits.length > 10 && digits.startsWith("0")) digits = digits.slice(1);
-  // Keep the last ten, so a pasted number with junk in front still resolves.
-  return digits.slice(-10);
+
+  // An international dialling prefix, before anything is measured.
+  if (digits.startsWith("00")) digits = digits.slice(2);
+
+  /* Each guarded on an *exact* length, not merely "longer than ten".
+     A real Indian mobile can itself begin "91" — 9111100002 is one — so
+     "longer than ten" meant that typing an eleventh digit onto a valid number
+     made it look like a country code and ate two digits off the front. A
+     country code is only a country code when what follows it is exactly a
+     ten-digit number; the same goes for a trunk zero. */
+  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+
+  /* The first ten, not the last ten.
+     Keeping the last ten was meant to rescue a pasted number with junk in
+     front, but it made typing an eleventh digit silently shift the whole number
+     left and drop the first one — the field looked like it had swallowed a
+     character at the start, which is exactly what it had done. The two prefix
+     rules above already handle every realistic paste ("+91 91111 00004",
+     "091111 00004"), so an eleventh digit is a typo and gets ignored instead. */
+  return digits.slice(0, 10);
 }
 
 /** Uppercase alphanumerics only, max six — the shape codes are issued in. */

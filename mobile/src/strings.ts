@@ -86,6 +86,17 @@ export const str = {
   },
 
   map: {
+    nothingYet: "Nothing to show on the map yet.",
+    tapToOpen: "Tap to open map",
+    yourStop: "Your stop",
+    close: "Close map",
+    scanTitle: "Scan the school QR code",
+    scanHint: "Point the camera at the QR code on your school's circular",
+    cameraTitle: "Camera access needed",
+    cameraBody: (appName: string) =>
+      `${appName} uses the camera only to read your school's QR code. Nothing is recorded.`,
+    cameraAllow: "Allow camera",
+    typeInstead: "Enter the code instead",
     noRouteTitle: "No route to show",
     noRouteHint: "This bus has no route with stops yet. Ask your school to set one up.",
     nearest: (stop: string) => `Nearest stop · ${stop}`,
@@ -99,6 +110,7 @@ export const str = {
   live: {
     noneTitle: "No buses are out",
     noneHint: "Running trips appear here the moment a driver starts one.",
+    unnamedBus: "Bus",
     noDriver: "No driver",
     noRoute: "no route",
     gpsStale: (when: string) => `GPS ${when} — low signal or phone asleep`,
@@ -181,6 +193,7 @@ export const str = {
   },
 
   driver: {
+    finding: "Finding your bus…",
     noBusTitle: "No bus assigned yet",
     noBusHint: "Ask your school office to assign you to a bus. Until then there is no trip to start.",
 
@@ -344,7 +357,7 @@ export const str = {
     notifyDropped: "when your child is dropped off",
     notifyAllow: "Allow notifications",
 
-    staffWelcomeTitle: "BalVahini Staff",
+    staffWelcomeTitle: (appName: string) => `${appName} Staff`,
     staffWelcomeBody: "For drivers, attendants and school offices.",
     staffWelcomeNext: "Sign in",
 
@@ -399,7 +412,11 @@ export const str = {
     howItWorksHint: "Replay the introduction",
     batterySettings: "Battery settings",
     batteryHint: "Keep tracking alive in the background",
+    schoolOffice: "School office",
     helpline: "Emergency helpline",
+    /* India's single emergency number. A constant, not a setting — but the
+       school's own contacts endpoint overrides it when it answers. */
+    defaultHelpline: "112",
     signOutTitle: "Sign out?",
     signOutDriver:
       "If a trip is running, the school will stop seeing your bus until you sign in and start it again.",
@@ -412,6 +429,12 @@ export const str = {
     newPasswordHint: "At least 6 characters",
     change: "Change",
     passwordChanged: "Password changed. Every other device has been signed out — this one stays.",
+  },
+
+  wrongApp: {
+    title: "This is the wrong app",
+    body: (name: string, role: string, wanted: string) =>
+      `${name}, your account is a ${role} account. Install ${wanted} and sign in there instead.`,
   },
 
   nav: {

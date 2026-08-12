@@ -239,9 +239,31 @@ Nothing is padded to a fixed width, so a string 40% longer still fits.
 - **A native map.** `react-native-maps` on Android is Google Maps, which is an
   API key and a billing account. `BusMap`'s props are the whole contract if that
   ever changes.
-- **String extraction in `BusMap.tsx` and `QrScanner.tsx`.** Both are
-  small, self-contained and were not otherwise touched; their copy moves when
-  they are next opened.
+- **The signed-in person's own photo in Profile.** `publicUser` in
+  `auth.service.ts` does not project `photoUrl`, so `/auth/me` never sends it
+  and the account screen falls back to initials. Adding the field is a one-line
+  additive backend change — left alone because the brief forbids changing what
+  an endpoint sends, and it cannot be deployed or tested while the server is
+  down. Student photos are unaffected; those endpoints already send it.
+
+## 6a. Dynamic values
+
+Nothing user-visible is a literal where the data exists to make it real:
+
+- **Photos** resolve through `assetUrl` **inside `Avatar`**, so every caller is
+  correct by construction. The API sends `/uploads/…`; `Image` needs an origin,
+  and passing the raw path silently rendered a blank circle.
+- **App name** comes from `useBrand().appName` on the sign-in header, the staff
+  welcome screen and the overview hero — so a school that has set its own name
+  sees it, not ours.
+- **Helpline and school office** in Profile come from
+  `/parent/emergency-contacts` for parents, who have that endpoint. `112` is
+  India's single emergency number and a genuine constant, so it is the fallback
+  rather than a setting — but the endpoint wins when it answers.
+- **Departure time** on the driver's tile is the first stop's `pickupTime`;
+  **scheduled arrival** on the parent's stop card is their own stop's.
+- The only literal `"BalVahini"` left in the app is the default in
+  `brand.tsx`, which is what a school overrides.
 
 ## 7. Verification
 

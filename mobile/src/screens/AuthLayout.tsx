@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors, elevation, radius, space, tone, VARIANT } from "../theme";
+import { useBrand } from "../brand";
 import { str } from "../strings";
 import { OfflineBanner, Shield, T } from "../ui";
 
@@ -33,6 +34,8 @@ export function Mark({ size = 64 }: { size?: number }) {
  * one recognises the other.
  */
 export default function AuthLayout({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+  const { appName } = useBrand();
+
   return (
     <Shield style={{ flex: 1 }}>
       <StatusBar style="light" />
@@ -57,8 +60,11 @@ export default function AuthLayout({ children, footer }: { children: ReactNode; 
           >
             <View style={s.brand}>
               <Mark />
+              {/* The school's own app name once a code has resolved, so the
+                  parent sees their school on the screen where a mistyped code
+                  is still cheap to fix. Falls back to ours until then. */}
               <T role="title" size={28} color={colors.white} style={{ marginTop: space(3) }}>
-                BalVahini
+                {appName}
               </T>
               <T role="label" weight="400" color={tone.textOnDarkMuted} style={{ marginTop: 2 }}>
                 {VARIANT === "parent" ? str.auth.parentTagline : str.auth.staffTagline}

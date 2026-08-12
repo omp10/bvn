@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { usePolling } from "../api";
 import { useAuth, type Role } from "../auth";
+import { useBrand } from "../brand";
 import { rupees } from "../format";
 import { colors, elevation, radius, space, tone } from "../theme";
 import { str } from "../strings";
@@ -78,6 +79,7 @@ const HEADLINE: Partial<Record<Role, (d: any) => { value: number; caption: strin
 
 export default function Overview() {
   const { user, school } = useAuth();
+  const { appName } = useBrand();
   const { data, loading, error, reload } = usePolling<any>("/dashboard", 60_000);
 
   if (loading && !data) {
@@ -106,7 +108,7 @@ export default function Overview() {
     <Screen refreshing={loading} onRefresh={reload}>
       <Shield style={s.hero}>
         <T role="label" weight="400" color={tone.textOnDarkMuted} numberOfLines={1}>
-          {school?.name ?? "BalVahini"}
+          {school?.name ?? appName}
         </T>
         {!!headline && (
           <>

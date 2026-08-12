@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Linking, View } from "react-native";
 import Constants from "expo-constants";
 import { useNavigation } from "@react-navigation/native";
-import { api, useAction } from "../api";
+import { api, useAction, useQuery } from "../api";
 import { ROLE_LABEL, useAuth } from "../auth";
 import { colors, space, tone, VARIANT } from "../theme";
 import { useBrand } from "../brand";
@@ -12,7 +12,7 @@ import {
   SchoolLogo, SectionHeader, T,
 } from "../ui";
 import {
-  IconBus, IconCheck, IconHistory, IconPhone, IconShield,
+  IconBus, IconCheck, IconHistory, IconPhone, IconSchool, IconShield,
 } from "../icons";
 
 /**
@@ -34,9 +34,19 @@ export default function Profile() {
   const [changing, setChanging] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
 
+  /* Only parents have this endpoint — it is on the parent router. Gating the
+     path to null means staff simply never make the request rather than
+     collecting a 403 on every visit to their own account screen. */
+  const contacts = useQuery<any>(user?.role === "parent" ? "/parent/emergency-contacts" : null);
+
   if (!user) return null;
 
   const isDriver = user.role === "driver";
+  const office = contacts.data?.transportOffice?.phone ?? contacts.data?.school?.phone ?? null;
+  // 112 is India's single emergency number, so it is a genuine constant rather
+  // than a setting — but the school may still name its own, so the endpoint
+  // wins when it answers.
+  const helpline = contacts.data?.helpline ?? str.profile.defaultHelpline;
 
   return (
     <Screen>
@@ -146,6 +156,24 @@ export default function Profile() {
           </>
         )}
 
+        {/* The school office, when we have a number for it. Parents get it from
+            their own contacts endpoint; staff already know where the office is. */}
+        {!!office && (
+          <>
+            <Divider />
+            <ListRow
+              icon={
+                <IconChip bg={colors.brand50}>
+                  <IconSchool size={18} color={colors.brand600} />
+                </IconChip>
+              }
+              title={str.profile.schoolOffice}
+              value={office}
+              onPress={() => void Linking.openURL(`tel:${office}`)}
+            />
+          </>
+        )}
+
         <Divider />
         <ListRow
           icon={
@@ -154,8 +182,8 @@ export default function Profile() {
             </IconChip>
           }
           title={str.profile.helpline}
-          value="112"
-          onPress={() => void Linking.openURL("tel:112")}
+          value={helpline}
+          onPress={() => void Linking.openURL(`tel:${helpline}`)}
         />
       </Card>
 

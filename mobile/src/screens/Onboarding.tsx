@@ -6,6 +6,7 @@ import * as Device from "expo-device";
 import * as Location from "expo-location";
 import { registerPushToken } from "../push";
 import { useAuth } from "../auth";
+import { useBrand } from "../brand";
 import { colors, radius, space, tone, VARIANT } from "../theme";
 import { str } from "../strings";
 import { Alert, Button, CheckLine, Dots, Enter, IconChip, T } from "../ui";
@@ -116,7 +117,7 @@ const CircularArt = () => (
 /* ── Step lists ────────────────────────────────────────────────────── */
 
 /** Shown before sign-in, per app. Skippable, and never more than four screens. */
-function introSteps(onSkipToSignIn: () => void): Step[] {
+function introSteps(onSkipToSignIn: () => void, appName: string): Step[] {
   if (VARIANT === "staff") {
     return [
       {
@@ -126,7 +127,7 @@ function introSteps(onSkipToSignIn: () => void): Step[] {
             <IconBus size={72} color={colors.leaf600} />
           </Art>
         ),
-        title: str.onboarding.staffWelcomeTitle,
+        title: str.onboarding.staffWelcomeTitle(appName),
         body: str.onboarding.staffWelcomeBody,
         primaryLabel: str.onboarding.staffWelcomeNext,
       },
@@ -414,7 +415,8 @@ function Flow({ steps, onDone, onSkip }: { steps: Step[]; onDone: () => void; on
 
 /** Pre-sign-in introduction, per app variant. */
 export function IntroOnboarding({ onDone }: { onDone: () => void }) {
-  return <Flow steps={introSteps(onDone)} onDone={onDone} onSkip={onDone} />;
+  const { appName } = useBrand();
+  return <Flow steps={introSteps(onDone, appName)} onDone={onDone} onSkip={onDone} />;
 }
 
 /** Post-sign-in, branched by role — mainly the driver's two permission screens. */

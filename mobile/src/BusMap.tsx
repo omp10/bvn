@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
 import { colors, radius } from "./theme";
+import { str } from "./strings";
 import { Muted, T } from "./ui";
 
 export type MapStop = { _id?: string; name: string; lat: number; lng: number; sequence?: number };
@@ -58,7 +59,7 @@ export default function BusMap({
   if (!hasAnything) {
     return (
       <View style={[s.blank, box]}>
-        <Muted>Nothing to show on the map yet.</Muted>
+        <Muted>{str.map.nothingYet}</Muted>
       </View>
     );
   }
@@ -100,7 +101,7 @@ export default function BusMap({
       {canExpand && (
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setExpanded(true)}>
           <View style={s.expandHint}>
-            <T size={12} weight="700" color={colors.white}>Tap to open map</T>
+            <T size={12} weight="700" color={colors.white}>{str.map.tapToOpen}</T>
           </View>
         </Pressable>
       )}
@@ -204,7 +205,11 @@ function page(stops: MapStop[], highlightStopId: string | null, follow: boolean)
   var pts = [];
   D.stops.forEach(function (s) {
     L.marker([s.lat, s.lng], { icon: s.mine ? pin('${colors.sun500}','\\u2605') : pin('${colors.leaf500}', s.label) })
-      .addTo(map).bindPopup(s.name + (s.mine ? '<br/><b>Your stop</b>' : ''));
+      /* JSON.stringify, not quotes-and-hope: the label is interpolated into
+         JavaScript that runs inside the WebView, and a translated string
+         carrying an apostrophe would end the literal early and take the whole
+         map down with it. */
+      .addTo(map).bindPopup(s.name + (s.mine ? '<br/><b>' + ${JSON.stringify(str.map.yourStop)} + '</b>' : ''));
     pts.push([s.lat, s.lng]);
   });
   /* The route line.

@@ -42,7 +42,7 @@ export default function DriverTrip() {
   // Streams the position while a trip runs, and stops the moment it ends.
   const gps = useTripTracker(trip?._id ?? null);
 
-  if (loading && !data) return <Loading label="Finding your bus…" />;
+  if (loading && !data) return <Loading label={str.driver.finding} />;
 
   if (error) {
     return (

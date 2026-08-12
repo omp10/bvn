@@ -67,7 +67,7 @@ export default function SchoolLive() {
     <Screen refreshing={loading} onRefresh={reload}>
       {data.map((trip) => {
         const open = openId === trip._id;
-        const label = trip.vehicleId?.busNumber ?? trip.vehicleId?.vehicleNumber ?? "Bus";
+        const label = trip.vehicleId?.busNumber ?? trip.vehicleId?.vehicleNumber ?? str.live.unnamedBus;
         const fix = trip.lastPosition;
 
         return (
