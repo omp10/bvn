@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
+import { Image, Linking, ScrollView, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Device from "expo-device";
@@ -11,7 +11,7 @@ import { colors, radius, space, tone, VARIANT } from "../theme";
 import { str } from "../strings";
 import { Alert, Button, CheckLine, Dots, Enter, IconChip, T } from "../ui";
 import {
-  IconBell, IconBus, IconCamera, IconCheck, IconMap, IconPin, IconSchool, IconShield, IconUsers,
+  IconBell, IconBus, IconCamera, IconCheck, IconMap, IconSchool, IconShield, IconUsers,
 } from "../icons";
 
 /* ── Persistence ───────────────────────────────────────────────────────
@@ -70,48 +70,41 @@ type Step = {
 
 /* ── Artwork ───────────────────────────────────────────────────────────
  *
- * ponytail: the app's own stroke icons at display size in a tinted well,
- * rather than illustrations. Bespoke vector art would mean either a second
- * asset pipeline or a few hundred lines of hand-written SVG per screen, and it
- * would drift from the icon set the rest of the app draws. The one exception is
- * the school-code screen, which shows a mock circular — that screen is the
- * single biggest drop-off point, and a picture of the thing they are looking
- * for does work that a bus icon cannot.
+ * The illustrations are the ones generated alongside the designs, bundled from
+ * `assets/onboarding`. Four screens have one; the other three (how it works,
+ * notifications, battery) were designed as icon rows and stay that way, using
+ * the app's own stroke set at display size in a tinted well.
+ *
+ * Bundled, not fetched: onboarding is the first thing a new install shows, and
+ * a parent on a bad connection should not be looking at four grey rectangles
+ * while deciding whether this app works. All four together are under 300 KB.
  */
+const ART = {
+  parentWelcome: require("../../assets/onboarding/parent-welcome.jpg"),
+  schoolCode: require("../../assets/onboarding/school-code.jpg"),
+  staffWelcome: require("../../assets/onboarding/staff-welcome.jpg"),
+  location: require("../../assets/onboarding/location.jpg"),
+};
+
+/**
+ * The aspect ratio comes off the bundled asset rather than being written down
+ * here, so recropping an image cannot silently letterbox or stretch it.
+ */
+const Illustration = ({ source, label }: { source: number; label: string }) => {
+  const meta = Image.resolveAssetSource(source);
+  return (
+    <Image
+      source={source}
+      accessibilityRole="image"
+      accessibilityLabel={label}
+      resizeMode="contain"
+      style={{ width: "100%", aspectRatio: meta.width / meta.height, borderRadius: radius.lg }}
+    />
+  );
+};
+
 const Art = ({ children, bg = colors.brand50 }: { children: ReactNode; bg?: string }) => (
   <View style={[s.art, { backgroundColor: bg }]}>{children}</View>
-);
-
-/** What a parent is actually hunting for, drawn so they recognise it on paper. */
-const CircularArt = () => (
-  <View style={s.circular}>
-    <View style={{ gap: space(2), flex: 1 }}>
-      <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.slate200, width: "70%" }} />
-      <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.slate200, width: "90%" }} />
-      <View style={s.codeHighlight}>
-        <T size={22} weight="800" color={colors.brand700} style={{ letterSpacing: 4 }}>
-          {str.onboarding.codeSample}
-        </T>
-      </View>
-      <T role="caption" color={tone.textMuted}>
-        {str.onboarding.codeCircular}
-      </T>
-    </View>
-
-    <View style={{ alignItems: "center", gap: space(1.5) }}>
-      {/* A recognisable QR silhouette, not a scannable code — three finder
-          squares is what the eye actually matches on. */}
-      <View style={s.qr}>
-        <View style={[s.qrEye, { top: 6, left: 6 }]} />
-        <View style={[s.qrEye, { top: 6, right: 6 }]} />
-        <View style={[s.qrEye, { bottom: 6, left: 6 }]} />
-        <View style={s.qrBody} />
-      </View>
-      <T role="caption" color={tone.textMuted}>
-        {str.onboarding.codeQrNote}
-      </T>
-    </View>
-  </View>
 );
 
 /* ── Step lists ────────────────────────────────────────────────────── */
@@ -122,11 +115,7 @@ function introSteps(onSkipToSignIn: () => void, appName: string): Step[] {
     return [
       {
         key: "staff-welcome",
-        art: (
-          <Art bg={colors.leaf50}>
-            <IconBus size={72} color={colors.leaf600} />
-          </Art>
-        ),
+        art: <Illustration source={ART.staffWelcome} label={str.onboarding.artStaffWelcome} />,
         title: str.onboarding.staffWelcomeTitle(appName),
         body: str.onboarding.staffWelcomeBody,
         primaryLabel: str.onboarding.staffWelcomeNext,
@@ -137,11 +126,7 @@ function introSteps(onSkipToSignIn: () => void, appName: string): Step[] {
   return [
     {
       key: "welcome",
-      art: (
-        <Art>
-          <IconBus size={72} color={colors.brand600} />
-        </Art>
-      ),
+      art: <Illustration source={ART.parentWelcome} label={str.onboarding.artParentWelcome} />,
       title: str.onboarding.parentWelcomeTitle,
       body: str.onboarding.parentWelcomeBody,
       primaryLabel: str.onboarding.getStarted,
@@ -162,7 +147,7 @@ function introSteps(onSkipToSignIn: () => void, appName: string): Step[] {
     },
     {
       key: "code",
-      art: <CircularArt />,
+      art: <Illustration source={ART.schoolCode} label={str.onboarding.artSchoolCode} />,
       title: str.onboarding.codeTitle,
       body: str.onboarding.codeBody,
       primaryLabel: str.onboarding.codeNext,
@@ -195,11 +180,7 @@ function roleSteps(role: string): Step[] {
     return [
       {
         key: "location",
-        art: (
-          <Art>
-            <IconPin size={72} color={colors.brand600} />
-          </Art>
-        ),
+        art: <Illustration source={ART.location} label={str.onboarding.artLocation} />,
         title: str.onboarding.locationTitle,
         body: str.onboarding.locationBody,
         bullets: [
@@ -452,51 +433,6 @@ const s = StyleSheet.create({
     borderRadius: 84,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  circular: {
-    flexDirection: "row",
-    gap: space(4),
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: tone.border,
-    borderRadius: radius.card,
-    padding: space(4),
-    // A sheet of paper on a desk, not a UI card.
-    transform: [{ rotate: "-2deg" }],
-    shadowColor: colors.slate900,
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  codeHighlight: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.sun100,
-    borderWidth: 2,
-    borderColor: colors.sun500,
-    borderRadius: radius.pill,
-    paddingHorizontal: space(3),
-    paddingVertical: space(1.5),
-  },
-
-  qr: {
-    width: 68,
-    height: 68,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.slate800,
-    backgroundColor: colors.white,
-  },
-  qrEye: { position: "absolute", width: 18, height: 18, borderWidth: 4, borderColor: colors.slate800 },
-  qrBody: {
-    position: "absolute",
-    right: 8,
-    bottom: 8,
-    width: 20,
-    height: 20,
-    backgroundColor: colors.slate800,
   },
 
   warnCard: {

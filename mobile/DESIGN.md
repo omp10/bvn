@@ -222,11 +222,8 @@ Nothing is padded to a fixed width, so a string 40% longer still fits.
 
 ## 6. What was deliberately not done
 
-- **Bespoke illustrations.** The onboarding art is the app's own stroke icons at
-  display size in a tinted well. Hand-written SVG scenes would be a few hundred
-  lines each and would drift from the icon set. The one exception is the school
-  circular, which is drawn because a picture of the thing they are hunting for
-  does work a bus icon cannot.
+- **Bespoke illustrations.** None were drawn. The four that exist are the ones
+  generated alongside the designs — see §6b.
 - **A Language row in Profile.** Only English ships. A settings row that opens
   nothing is worse than no row; it goes in with the second locale.
 - **Undo on an attendance mark.** There is no endpoint that removes one. The
@@ -246,6 +243,48 @@ never sent, so the phone apps had a photo on file and no way to know. Adding a
 field cannot break the web app, which reads the fields it names; both
 typecheck, and the backend's 19 tests still pass. **It needs deploying before
 Profile shows anything but initials.**
+
+## 6b. Onboarding illustrations
+
+Four of the seven onboarding screens carry a bundled illustration, taken from
+the ones generated with the designs and living in `assets/onboarding`:
+
+| Screen | Asset | |
+|---|---|---|
+| Parent welcome | `parent-welcome.jpg` | 94 KB |
+| Where is my school code | `school-code.jpg` | 69 KB |
+| Staff welcome | `staff-welcome.jpg` | 98 KB |
+| Driver location primer | `location.jpg` | 35 KB |
+
+The other three — how it works, notifications, battery — were designed as icon
+rows and had no illustration to take; they use the app's own stroke set at
+display size in a tinted well.
+
+Notes on how they are handled:
+
+- **Bundled, not fetched.** Onboarding is the first thing a new install shows,
+  and a parent on a bad connection should not be judging the app by four grey
+  rectangles. Under 300 KB for all four.
+- **Downloaded at `=w1200`.** The default the design tool serves is 512px wide,
+  which is visibly soft upscaled to full width; the native maximum is 1408.
+  1200 covers a 3× phone with no meaningful size cost.
+- **`staff-welcome.jpg` was cropped.** It shipped with the words "Staff Welcome"
+  rendered *into* the image — a screen title baked into the artwork. It would
+  have duplicated the real headline and could never be translated, so the title
+  band is cropped off.
+- **Aspect ratio is read off the asset** at render time rather than written into
+  the stylesheet, so recropping an image cannot silently letterbox or stretch
+  it.
+- **They are described, not decorative.** Each has alt text in `strings.ts` —
+  the circular especially, since it is a picture of the thing the parent is
+  hunting for.
+
+Two things to know about them. They are fixed-palette raster art, so they do not
+follow a school's brand hue the way every other surface does — acceptable
+because they sit on white, on onboarding only, and nowhere else in the app.
+And the circular shows "ACADEMIC YEAR 2024/2025" and a placeholder web address
+in small print; it reads as an illustration rather than a claim, but it will
+want regenerating eventually.
 
 ## 6a. Dynamic values
 

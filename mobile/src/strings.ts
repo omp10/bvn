@@ -329,6 +329,16 @@ export const str = {
 
   onboarding: {
     getStarted: "Get started",
+
+    /* Alt text for the bundled illustrations. They carry meaning — the circular
+       especially, since it is a picture of the thing the parent is hunting
+       for — so they are described rather than marked decorative. */
+    artParentWelcome: "A yellow school bus on a country road, with a child waving from a window",
+    artSchoolCode:
+      "A school circular with the six-character code circled in yellow marker, and a QR code printed beside it",
+    artStaffWelcome: "A driver in uniform standing beside a yellow school bus",
+    artLocation: "A phone in a bus cradle showing a map with a location pin",
+
     haveAccount: "I already have an account",
     maybeLater: "Maybe later",
     replayDone: "Done",
@@ -345,9 +355,6 @@ export const str = {
     codeTitle: "Where is my school code?",
     codeBody:
       "Your school prints a six-character code on its circular. You can also scan the school's QR code instead of typing it.",
-    codeSample: "ABC123",
-    codeCircular: "School circular",
-    codeQrNote: "Or scan this",
     codeNext: "Enter my code",
 
     notifyTitle: "Never miss the bus",
