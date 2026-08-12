@@ -54,6 +54,40 @@ export class ApiError extends Error {
   }
 }
 
+/* ── Reachability ──────────────────────────────────────────────────────
+ *
+ * "Can we reach our API" rather than "is there a network", which is the
+ * question every screen actually asks. A phone on a bus holds a full signal
+ * bar while behind a captive portal, and NetInfo would happily call that
+ * online — so this is derived from real request outcomes instead. It also
+ * costs no native module, which the parent app would otherwise carry for one
+ * banner.
+ */
+let online = true;
+const onlineWatchers = new Set<(value: boolean) => void>();
+
+function setOnline(value: boolean) {
+  if (online === value) return;
+  online = value;
+  onlineWatchers.forEach((fn) => fn(value));
+}
+
+/** Subscribe to reachability. Returns the current value and an unsubscribe. */
+export function watchOnline(fn: (value: boolean) => void) {
+  onlineWatchers.add(fn);
+  return () => {
+    onlineWatchers.delete(fn);
+  };
+}
+
+export const isOnline = () => online;
+
+export function useOnline() {
+  const [value, setValue] = useState(online);
+  useEffect(() => watchOnline(setValue), []);
+  return value;
+}
+
 /** The server names the offending field in `details`; "validation failed" does not. */
 function messageFor(data: { error?: string; details?: unknown }, status: number): string {
   const first = Array.isArray(data?.details) ? (data.details[0] as { message?: string }) : null;
@@ -115,9 +149,11 @@ export async function api<T = any>(path: string, options: Options = {}): Promise
   let res: Response;
   try {
     res = await send();
+    setOnline(true);
   } catch {
     // A phone on a bus loses signal constantly. Say that, rather than "Network
     // request failed", which reads like the app is broken.
+    setOnline(false);
     throw new ApiError(0, "Cannot reach the server. Check your connection.");
   }
 

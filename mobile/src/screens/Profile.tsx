@@ -1,14 +1,19 @@
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, View } from "react-native";
 import Constants from "expo-constants";
+import { useNavigation } from "@react-navigation/native";
 import { api, useAction } from "../api";
 import { ROLE_LABEL, useAuth } from "../auth";
-import { colors, radius, VARIANT } from "../theme";
+import { colors, space, tone, VARIANT } from "../theme";
 import { useBrand } from "../brand";
+import { str } from "../strings";
 import {
-  Alert, Avatar, Button, Card, Divider, Field, Modal, Muted, Screen, SchoolLogo, T,
+  Alert, Avatar, Button, Card, Confirm, Divider, Field, IconChip, ListRow, Modal, Muted, Screen,
+  SchoolLogo, SectionHeader, T,
 } from "../ui";
-import { IconPhone, IconShield } from "../icons";
+import {
+  IconBus, IconCheck, IconHistory, IconPhone, IconShield,
+} from "../icons";
 
 /**
  * Account screen.
@@ -16,89 +21,171 @@ import { IconPhone, IconShield } from "../icons";
  * Signing out lives here rather than in the header: on a moving bus the header
  * is exactly where a thumb lands, and a driver mid-trip logging out by accident
  * stops the school seeing the bus.
+ *
+ * It is also where the destinations that lost their tab went. History is a
+ * "what happened last week" question, not a mid-shift one, and the battery
+ * exemption is a thing a driver is sent back to weeks after onboarding — both
+ * belong somewhere findable rather than somewhere permanent.
  */
 export default function Profile() {
+  const navigation = useNavigation<any>();
   const { user, school, signOut } = useAuth();
-  const { appName } = useBrand();
+  const { appName, primary, tint } = useBrand();
   const [changing, setChanging] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
 
   if (!user) return null;
 
+  const isDriver = user.role === "driver";
+
   return (
     <Screen>
       <Card>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space(4) }}>
           <Avatar name={user.name} size={64} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <T size={18} weight="800" numberOfLines={1}>{user.name}</T>
-            <Muted size={13}>{ROLE_LABEL[user.role]}</Muted>
-            <Muted size={13}>{user.phone}</Muted>
+          <View style={{ flex: 1, minWidth: 0, gap: space(1) }}>
+            <T role="title" size={20} numberOfLines={1}>
+              {user.name}
+            </T>
+            <View style={{ flexDirection: "row" }}>
+              <View
+                style={{
+                  backgroundColor: tint,
+                  paddingHorizontal: space(2.5),
+                  paddingVertical: space(1),
+                  borderRadius: 999,
+                }}
+              >
+                <T role="caption" weight="700" color={primary}>
+                  {ROLE_LABEL[user.role]}
+                </T>
+              </View>
+            </View>
+            <Muted role="label" weight="400">
+              {user.phone}
+            </Muted>
           </View>
         </View>
       </Card>
 
       {!!school && (
         <Card>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space(3) }}>
             <SchoolLogo size={40} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <T size={15} weight="700" numberOfLines={1}>{school.name}</T>
-              <Muted size={11}>School code {school.code}</Muted>
+              <T role="body" weight="700" numberOfLines={1}>
+                {school.name}
+              </T>
+              <Muted>{str.profile.schoolCode(school.code)}</Muted>
             </View>
           </View>
         </Card>
       )}
 
+      <SectionHeader>{str.profile.account}</SectionHeader>
+
       <Card padded={false}>
-        {/* Parents have no password — they sign in with an OTP every time. */}
-        {VARIANT === "staff" && (
+        {isDriver && (
           <>
-            <Pressable onPress={() => setChanging(true)} style={s.row}>
-              <IconShield size={20} color={colors.slate400} />
-              <T size={14} weight="500" style={{ flex: 1 }}>Change password</T>
-              <T size={16} color={colors.slate300}>›</T>
-            </Pressable>
+            <ListRow
+              icon={
+                <IconChip bg={colors.brand50}>
+                  <IconHistory size={18} color={colors.brand600} />
+                </IconChip>
+              }
+              title={str.profile.myTrips}
+              subtitle={str.profile.myTripsHint}
+              onPress={() => navigation.navigate("TripHistory")}
+            />
             <Divider />
           </>
         )}
-        <Pressable onPress={() => Linking.openURL("tel:112")} style={s.row}>
-          <IconPhone size={20} color={colors.slate400} />
-          <T size={14} weight="500" style={{ flex: 1 }}>Emergency helpline</T>
-          <T size={14} weight="700" color={colors.brand600}>112</T>
-        </Pressable>
+
+        {/* Parents have no password — they sign in with an OTP every time. */}
+        {VARIANT === "staff" && (
+          <>
+            <ListRow
+              icon={
+                <IconChip bg={colors.brand50}>
+                  <IconShield size={18} color={colors.brand600} />
+                </IconChip>
+              }
+              title={str.profile.changePassword}
+              onPress={() => setChanging(true)}
+            />
+            <Divider />
+          </>
+        )}
+
+        {/* Drivers change and phones get replaced. The walkthrough that was
+            shown once at install has to be reachable forever after. */}
+        <ListRow
+          icon={
+            <IconChip bg={colors.leaf50}>
+              <IconCheck size={18} color={tone.success} />
+            </IconChip>
+          }
+          title={str.profile.howItWorks}
+          subtitle={str.profile.howItWorksHint}
+          onPress={() => navigation.navigate("Onboarding")}
+        />
+
+        {isDriver && (
+          <>
+            <Divider />
+            <ListRow
+              icon={
+                <IconChip bg={colors.amber50}>
+                  <IconBus size={18} color={colors.amber600} />
+                </IconChip>
+              }
+              title={str.profile.batterySettings}
+              subtitle={str.profile.batteryHint}
+              onPress={() => void Linking.openSettings()}
+            />
+          </>
+        )}
+
+        <Divider />
+        <ListRow
+          icon={
+            <IconChip bg={colors.red50}>
+              <IconPhone size={18} color={tone.danger} />
+            </IconChip>
+          }
+          title={str.profile.helpline}
+          value="112"
+          onPress={() => void Linking.openURL("tel:112")}
+        />
       </Card>
 
-      <Button variant="secondary" block onPress={() => setConfirmOut(true)}>
-        Sign out
+      <Button variant="dangerOutline" block onPress={() => setConfirmOut(true)}>
+        {str.common.signOut}
       </Button>
 
-      <View style={{ alignItems: "center", gap: 2, paddingTop: 4 }}>
-        <Muted size={11}>{appName} · Safe Journeys, Brighter Futures</Muted>
-        <Muted size={11}>Version {Constants.expoConfig?.version ?? "1.0.0"}</Muted>
+      <View style={{ alignItems: "center", gap: 2, paddingTop: space(1) }}>
+        <Muted>
+          {appName} · {str.common.appTagline}
+        </Muted>
+        <Muted>{str.profile.version(Constants.expoConfig?.version ?? "1.0.0")}</Muted>
       </View>
 
       <ChangePassword open={changing} onClose={() => setChanging(false)} />
 
-      <Modal
+      <Confirm
         open={confirmOut}
         onClose={() => setConfirmOut(false)}
-        title="Sign out?"
-        footer={
-          <>
-            <Button variant="secondary" onPress={() => setConfirmOut(false)}>Stay signed in</Button>
-            <Button variant="danger" onPress={signOut}>Sign out</Button>
-          </>
-        }
-      >
-        <T size={14} color={colors.slate600} style={{ lineHeight: 20 }}>
-          {user.role === "driver"
-            ? "If a trip is running, the school will stop seeing your bus until you sign in and start it again."
+        onConfirm={signOut}
+        title={str.profile.signOutTitle}
+        confirmLabel={str.common.signOut}
+        body={
+          isDriver
+            ? str.profile.signOutDriver
             : user.role === "parent"
-              ? "You'll need your school code and a fresh OTP to sign back in."
-              : "You'll need your password to sign back in."}
-        </T>
-      </Modal>
+              ? str.profile.signOutParent
+              : str.profile.signOutStaff
+        }
+      />
     </Screen>
   );
 }
@@ -118,13 +205,15 @@ function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void 
     <Modal
       open={open}
       onClose={close}
-      title="Change password"
+      title={str.profile.changePassword}
       footer={
         done ? (
-          <Button onPress={close}>Close</Button>
+          <Button onPress={close}>{str.common.close}</Button>
         ) : (
           <>
-            <Button variant="secondary" onPress={onClose}>Cancel</Button>
+            <Button variant="secondary" onPress={onClose}>
+              {str.common.cancel}
+            </Button>
             <Button
               loading={busy}
               disabled={!current || next.length < 6}
@@ -139,23 +228,28 @@ function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void 
                 )
               }
             >
-              Change
+              {str.profile.change}
             </Button>
           </>
         )
       }
     >
       {done ? (
-        <T size={14} color={colors.slate600} style={{ lineHeight: 20, paddingVertical: 4 }}>
-          Password changed. Every other device has been signed out — this one stays.
+        <T role="body" color={tone.textSecondary} style={{ paddingVertical: space(1) }}>
+          {str.profile.passwordChanged}
         </T>
       ) : (
-        <View style={{ gap: 14 }}>
+        <View style={{ gap: space(3.5) }}>
           <Alert>{error}</Alert>
-          <Field label="Current password" value={current} onChangeText={setCurrent} secureTextEntry />
           <Field
-            label="New password"
-            hint="At least 6 characters"
+            label={str.profile.currentPassword}
+            value={current}
+            onChangeText={setCurrent}
+            secureTextEntry
+          />
+          <Field
+            label={str.profile.newPassword}
+            hint={str.profile.newPasswordHint}
             value={next}
             onChangeText={setNext}
             secureTextEntry
@@ -165,15 +259,3 @@ function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void 
     </Modal>
   );
 }
-
-const s = StyleSheet.create({
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.brand50,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 14 },
-});

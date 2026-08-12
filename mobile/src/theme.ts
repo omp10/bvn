@@ -48,20 +48,97 @@ export const colors = {
   slate900: "#0f172a",
 };
 
+/**
+ * Semantic aliases. Components reference these, never a raw shade, so the one
+ * place to retune a surface or a border is here. `brand` is deliberately absent:
+ * it is per-school and comes from `useBrand()`, and a static token would be a
+ * second source of truth that quietly ignores the school's colour.
+ */
+export const tone = {
+  surface: colors.slate50,
+  surfaceRaised: colors.white,
+  surfaceSunken: colors.slate100,
+  textPrimary: colors.slate900,
+  textSecondary: colors.slate600,
+  textMuted: colors.slate500,
+  textOnDark: colors.white,
+  /** On a gradient, where slate greys have no contrast to give. */
+  textOnDarkMuted: "rgba(255,255,255,0.74)",
+  border: colors.slate200,
+  borderStrong: colors.slate300,
+  success: colors.leaf600,
+  successTint: colors.leaf50,
+  warning: colors.amber600,
+  warningTint: colors.amber50,
+  danger: colors.red600,
+  dangerTint: colors.red50,
+};
+
 /** The shield gradient from the logo — headers, hero cards, the auth screen. */
 export const shieldGradient = [colors.brand600, colors.brand700, colors.leaf600] as const;
 
+/** Three values. A fourth radius is a fourth thing to get subtly wrong. */
 export const radius = { sm: 8, md: 12, card: 14, lg: 18, pill: 999 };
 
+/** 4pt base. Every gap in the app is `space(n)`, never a bare number. */
 export const space = (n: number) => n * 4;
 
-export const shadow = {
-  shadowColor: "#0f172a",
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 4 },
-  elevation: 2,
-};
+/** Screen gutter — 16px, matching the design's margins. */
+export const GUTTER = space(4);
+
+/**
+ * Named type roles with explicit line heights, so a 130% system font scale
+ * grows the text without collapsing the leading. Sizes are unscaled points;
+ * `T` caps the OS multiplier at 1.3 rather than letting a 200% setting shear
+ * a driver's stat tiles in half.
+ */
+export const type = {
+  display: { fontSize: 48, lineHeight: 52, fontWeight: "800" },
+  title: { fontSize: 24, lineHeight: 30, fontWeight: "800" },
+  heading: { fontSize: 17, lineHeight: 23, fontWeight: "700" },
+  body: { fontSize: 15, lineHeight: 21, fontWeight: "400" },
+  label: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  caption: { fontSize: 11, lineHeight: 15, fontWeight: "500" },
+} as const;
+
+export type TypeRole = keyof typeof type;
+
+/** Font scaling ceiling — 130% is the brief's floor, and layouts are built for it. */
+export const MAX_FONT_SCALE = 1.3;
+
+/**
+ * Three elevation levels, and mostly we prefer the border. A phone screen full
+ * of drop shadows reads as noise, and Android renders them expensively.
+ */
+export const elevation = {
+  flat: {},
+  raised: {
+    shadowColor: colors.slate900,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  floating: {
+    shadowColor: colors.slate900,
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+} as const;
+
+/** Kept for the screens that still import it; `elevation.raised` is the token. */
+export const shadow = elevation.raised;
+
+/** Motion. Durations in ms; nothing bounces, nothing decorates. */
+export const motion = {
+  fast: 120,
+  base: 200,
+  slow: 320,
+  /** How long a pulsing "this is live" loop takes. */
+  pulse: 2000,
+} as const;
 
 export type Variant = "parent" | "staff";
 

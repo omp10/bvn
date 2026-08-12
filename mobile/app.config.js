@@ -95,6 +95,10 @@ module.exports = {
          real certificate, so anything trying to talk plain HTTP is a mistake and
          should fail loudly rather than quietly sending a session token in the
          clear. */
+      /* VIBRATE is what React Native's own Vibration needs for the confirming
+         tick on marking a child, starting or ending a trip, and raising an
+         emergency. Declared explicitly rather than relying on a plugin to add
+         it, because this list replaces the defaults. */
       permissions:
         VARIANT === "staff"
           ? [
@@ -104,9 +108,10 @@ module.exports = {
               "FOREGROUND_SERVICE",
               "FOREGROUND_SERVICE_LOCATION",
               "CAMERA",
+              "VIBRATE",
             ]
           : // The parent app's camera is for the school QR code and nothing else.
-            ["INTERNET", "CAMERA"],
+            ["INTERNET", "CAMERA", "VIBRATE"],
     },
     plugins: [
       [
