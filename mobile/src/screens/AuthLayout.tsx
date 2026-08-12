@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors, elevation, radius, space, tone, VARIANT } from "../theme";
 import { str } from "../strings";
-import { Shield, T } from "../ui";
+import { OfflineBanner, Shield, T } from "../ui";
 
 /** The mark: the shield, and the little yellow bus inside it. */
 export function Mark({ size = 64 }: { size?: number }) {
@@ -37,6 +37,9 @@ export default function AuthLayout({ children, footer }: { children: ReactNode; 
     <Shield style={{ flex: 1 }}>
       <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Sign-in is exactly where being offline is most confusing — an OTP
+            that never arrives reads as a wrong number rather than no signal. */}
+        <OfflineBanner />
         {/* Android needs a behavior too. With `undefined` the keyboard simply
             covered the lower fields — the OTP box on this very screen — and
             there was no way to see what you were typing. "height" is the one
