@@ -65,8 +65,18 @@ Android. Three radii (`sm 8`, `md 12`, `card 14`) plus `lg 18` for sheets and
 `pill`.
 
 Motion is `fast 120` / `base 200` / `slow 320` / `pulse 2000`. `useReducedMotion()`
-is honoured by `Enter`, `LiveDot` and `Skeleton` — under reduce-motion they
-render their final state and start no animation loop at all.
+is honoured by `Enter`, `LiveDot`, `Skeleton`, and all custom transitions — under
+reduce-motion they render their final state immediately.
+
+### Custom Motion Animations:
+- **ETA Digit Slide (B1):** Upward slide and cross-fade over `motion.base` on digit change, utilizing a custom vertical container clip and avoiding animation on first paint.
+- **Roster Mark Wash & Scale (B2):** Roster rows animate their background/border colors to status tints over `motion.fast` using Animated.View wrappers, and status badges pop-scale from 0.8 to 1.0.
+- **List Entry Stagger (B3):** Mount animation using `<Enter>` staggered across the first 8 items (30 ms step), and instant for the rest.
+- **Skeleton Cross-Fade (B4):** Smooth cross-fade from skeleton screens to loaded content screens using `<CrossFade>` over `motion.base`.
+- **GPS Panel Transitions (B5):** Border colors sweep smoothly to green when GPS tracking becomes healthy, and the icon scales in. On trip end, the GPS panel collapses calmly to 0 height/opacity before unmounting.
+- **Backdrop Dim (B6):** Sheet backdrop fades from 0 to 0.45 opacity, syncing with the sheet slide.
+- **Tab Press Scale (B7):** Icons scale down to 0.85 and back on focus/press over `motion.fast`.
+- **Bell Swing & Badge Pop (B8):** Bell icon swings (rotates +/- 15 deg) and the red unread count badge spring-pops (scale 0.6 -> 1.0) when new alerts arrive.
 
 ### Dark mode — no, and why
 
@@ -246,19 +256,29 @@ Profile shows anything but initials.**
 
 ## 6b. Onboarding illustrations
 
-Four of the seven onboarding screens carry a bundled illustration, taken from
-the ones generated with the designs and living in `assets/onboarding`:
+All seven onboarding screens carry a bundled illustration, living in `assets/onboarding`:
 
-| Screen | Asset | |
-|---|---|---|
-| Parent welcome | `parent-welcome.jpg` | 94 KB |
-| Where is my school code | `school-code.jpg` | 69 KB |
-| Staff welcome | `staff-welcome.jpg` | 98 KB |
-| Driver location primer | `location.jpg` | 35 KB |
+| Screen | Asset | Description | Size |
+|---|---|---|---|
+| Parent welcome | `parent-welcome.jpg` | A yellow school bus on a country road | 94 KB |
+| Where is my school code | `school-code.jpg` | A school circular with code circled | 69 KB |
+| Staff welcome | `staff-welcome.jpg` | A driver in uniform beside a school bus | 98 KB |
+| Driver location primer | `location.jpg` | A phone in a bus cradle showing a map | 35 KB |
+| Notifications | `notifications.jpg` | Phone in hand, notification sliding in | 32 KB |
+| Battery optimization | `battery.jpg` | Phone in cradle, full battery and shield | 43 KB |
+| Attendant guide | `attendant.jpg` | Attendant helping child board a bus | 55 KB |
+| Desk onboarding | `desk.jpg` | School office desk with laptop | 33 KB |
 
-The other three — how it works, notifications, battery — were designed as icon
-rows and had no illustration to take; they use the app's own stroke set at
-display size in a tinted well.
+The placeholder `<Art>` component has been completely replaced by these high-quality illustrations.
+
+### Spot Illustrations & Child Avatars
+We added 7 transparent PNG spot illustrations for empty states, 2 failure spot illustrations in `assets/empty/`, and 8 geometric child avatars in `assets/avatars/`:
+
+- **Empty states:** `no-children.png` (empty bench), `no-trips.png` (bus under tree), `no-alerts.png` (bell at rest), `no-route.png` (route line), `no-students.png` (bus seats), `no-buses.png` (bus depot), `no-history.png` (calendar).
+- **Failure states:** `offline.png` (phone with cloud), `error.png` (bus with open bonnet).
+- **Child avatars:** `child-1.png`...`child-8.png` programmatically vector-drawn school children avatars.
+- **Deterministic Hashing:** `Avatar` hashes child names deterministically to pick one of the 8 avatars when `photoUrl` is absent, and supports `illustrated={false}` to show initials for adults.
+- **Compression:** All illustrations were quantized to 8-bit palette PNGs, keeping the entire set under **370 KB** (far below the 2.5 MB budget).
 
 Notes on how they are handled:
 

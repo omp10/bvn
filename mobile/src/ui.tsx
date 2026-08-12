@@ -104,6 +104,112 @@ export function Enter({
   );
 }
 
+export function AnimatedCount({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const reduced = useReducedMotion();
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    if (reduced) {
+      setDisplayValue(value);
+      prevValue.current = value;
+      return;
+    }
+    if (value === prevValue.current) return;
+
+    let start = prevValue.current;
+    const end = value;
+    const duration = 200; // motion.base
+    const startTime = performance.now();
+
+    let frameId: number;
+    const update = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const current = Math.round(start + (end - start) * progress);
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(update);
+      } else {
+        prevValue.current = end;
+      }
+    };
+    frameId = requestAnimationFrame(update);
+
+    return () => cancelAnimationFrame(frameId);
+  }, [value, reduced]);
+
+  return <>{displayValue}</>;
+}
+
+export function CrossFade({
+  loading,
+  skeleton,
+  children,
+}: {
+  loading: boolean;
+  skeleton: ReactNode;
+  children: ReactNode;
+}) {
+  const reduced = useReducedMotion();
+  const anim = useRef(new Animated.Value(loading ? 0 : 1)).current;
+  const [renderSkeleton, setRenderSkeleton] = useState(loading);
+  const [renderContent, setRenderContent] = useState(!loading);
+
+  useEffect(() => {
+    if (reduced) {
+      setRenderSkeleton(loading);
+      setRenderContent(!loading);
+      return;
+    }
+
+    if (loading) {
+      setRenderSkeleton(true);
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: motion.base,
+        useNativeDriver: true,
+      }).start(() => {
+        setRenderContent(false);
+      });
+    } else {
+      setRenderContent(true);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: motion.base,
+        useNativeDriver: true,
+      }).start(() => {
+        setRenderSkeleton(false);
+      });
+    }
+  }, [loading, reduced]);
+
+  if (reduced) return <>{loading ? skeleton : children}</>;
+
+  return (
+    <View style={{ flex: 1 }}>
+      {renderSkeleton && (
+        <Animated.View
+          style={{
+            opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+            position: renderContent ? "absolute" : "relative",
+            width: "100%",
+            zIndex: 1,
+          }}
+        >
+          {skeleton}
+        </Animated.View>
+      )}
+      {renderContent && (
+        <Animated.View style={{ opacity: anim, width: "100%" }}>
+          {children}
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
 /* ── Text ──────────────────────────────────────────────────────────────
  *
  * `role` is the token; `size`/`weight` still override it, so the screens that
@@ -456,16 +562,46 @@ export function Badge({ value, label }: { value?: string | null; label?: string 
   );
 }
 
+/**
+ * Stand-in faces for a student with no photo on file.
+ *
+ * Module scope on purpose: a 60-child roster renders 60 avatars, and rebuilding
+ * this array inside the component was allocating it 60 times per pass.
+ */
+const AVATARS = [
+  require("../assets/avatars/child-1.png"),
+  require("../assets/avatars/child-2.png"),
+  require("../assets/avatars/child-3.png"),
+  require("../assets/avatars/child-4.png"),
+  require("../assets/avatars/child-5.png"),
+  require("../assets/avatars/child-6.png"),
+  require("../assets/avatars/child-7.png"),
+  require("../assets/avatars/child-8.png"),
+];
+
+/**
+ * Which face a name gets. Deterministic, so a child keeps the same one across
+ * renders, screens and app launches — a face that changed on every scroll would
+ * read as the row belonging to a different child.
+ */
+const avatarFor = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return Math.abs(hash) % AVATARS.length;
+};
+
 export const Avatar = ({
   name,
   photoUrl,
   size = 40,
   onDark,
+  illustrated = true,
 }: {
   name: string;
   photoUrl?: string | null;
   size?: number;
   onDark?: boolean;
+  illustrated?: boolean;
 }) => {
   /* The API returns "/uploads/…", which is not something `Image` can fetch —
      it needs the origin on the front. Resolved here rather than at each call
@@ -483,6 +619,16 @@ export const Avatar = ({
     );
   }
 
+  if (illustrated && name) {
+    return (
+      <Image
+        source={AVATARS[avatarFor(name)]}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        accessibilityLabel={name}
+      />
+    );
+  }
+
   return (
     <View
       style={{
@@ -495,7 +641,7 @@ export const Avatar = ({
       }}
     >
       <T size={size * 0.36} weight="700" color={onDark ? colors.white : colors.brand600}>
-        {initials(name)}
+        {name ? initials(name) : ""}
       </T>
     </View>
   );
@@ -631,12 +777,23 @@ export const EmptyState = ({
   title,
   hint,
   action,
+  art,
 }: {
   title: string;
   hint?: string | null;
   action?: ReactNode;
+  art?: number;
 }) => (
   <View style={{ paddingVertical: space(8), paddingHorizontal: space(5), alignItems: "center", gap: space(1.5) }}>
+    {art != null && (
+      <Image
+        source={art}
+        style={{ width: 120, height: 120, marginBottom: space(4) }}
+        resizeMode="contain"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+    )}
     <T role="heading">{title}</T>
     {!!hint && (
       <T role="body" color={tone.textMuted} style={{ textAlign: "center" }}>
@@ -648,21 +805,27 @@ export const EmptyState = ({
 );
 
 /** Failure with a way out. Errors read as instructions, not as stack traces. */
-export const ErrorState = ({ message, onRetry }: { message?: string | null; onRetry?: () => void }) => (
-  <Card>
-    <EmptyState
-      title={str.common.somethingWrong}
-      hint={message ?? str.common.tryAgainHint}
-      action={
-        onRetry ? (
-          <Button variant="secondary" block onPress={onRetry}>
-            {str.common.tryAgain}
-          </Button>
-        ) : undefined
-      }
-    />
-  </Card>
-);
+export const ErrorState = ({ message, onRetry }: { message?: string | null; onRetry?: () => void }) => {
+  const isOffline = message?.includes("Cannot reach the server") || !message;
+  const art = isOffline ? require("../assets/empty/offline.png") : require("../assets/empty/error.png");
+
+  return (
+    <Card>
+      <EmptyState
+        art={art}
+        title={str.common.somethingWrong}
+        hint={message ?? str.common.tryAgainHint}
+        action={
+          onRetry ? (
+            <Button variant="secondary" block onPress={onRetry}>
+              {str.common.tryAgain}
+            </Button>
+          ) : undefined
+        }
+      />
+    </Card>
+  );
+};
 
 export const Divider = () => <View style={{ height: 1, backgroundColor: colors.slate100 }} />;
 
@@ -907,10 +1070,91 @@ export const CheckLine = ({ children }: { children: ReactNode }) => (
  * The shield gradient, used for headers and hero cards. Takes the school's own
  * colour when one is configured — this is the surface where branding reads.
  */
-export const Shield = ({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) => {
+/**
+ * Slow-drifting translucent discs behind a hero's content.
+ *
+ * The gradient alone is a flat wall of colour. These give it depth and a sense
+ * that the screen is alive without anything actually demanding attention —
+ * a parent glancing at an ETA should register motion in their peripheral
+ * vision, not be pulled to it.
+ *
+ * Everything here is white at low alpha, never a colour of its own, so it works
+ * on top of whatever hue a school picked. Only `transform` and `opacity` are
+ * animated, so the whole thing runs on the native driver and never touches the
+ * JS thread.
+ *
+ * ponytail: three plain Views, not a blur or a particle system. RN has no
+ * cheap backdrop blur on Android, and a driver's phone holds this screen for
+ * hours — three interpolated transforms is a cost worth paying, a shader is
+ * not.
+ */
+const BLOBS = [
+  { size: 200, top: -70, left: -50, drift: 26, delay: 0, duration: 22000, alpha: 0.1 },
+  { size: 150, top: 40, right: -50, drift: -22, delay: 2600, duration: 27000, alpha: 0.075 },
+  { size: 110, bottom: -46, left: "38%" as const, drift: 18, delay: 5200, duration: 19000, alpha: 0.06 },
+];
+
+function Ambient() {
+  const reduced = useReducedMotion();
+  // One shared 0→1→0 driver for all three; they differ by delay and distance,
+  // which is cheaper than three independent loops and stays in step.
+  const play = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(play, { toValue: 1, duration: 24000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(play, { toValue: 0, duration: 24000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [play, reduced]);
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill} accessibilityElementsHidden>
+      {BLOBS.map((b, i) => {
+        const { size, drift, alpha, ...pos } = b;
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: "absolute",
+              ...pos,
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              backgroundColor: `rgba(255,255,255,${alpha})`,
+              // Static under reduce-motion: the depth stays, the movement goes.
+              transform: reduced
+                ? []
+                : [
+                    { translateX: play.interpolate({ inputRange: [0, 1], outputRange: [0, drift] }) },
+                    { translateY: play.interpolate({ inputRange: [0, 1], outputRange: [0, -drift * 0.6] }) },
+                  ],
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+export const Shield = ({
+  children,
+  style,
+  ambient,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  /** Adds the drifting background. For hero cards, not for headers. */
+  ambient?: boolean;
+}) => {
   const { gradient } = useBrand();
   return (
     <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={style}>
+      {ambient && <Ambient />}
       {children}
     </LinearGradient>
   );
@@ -1012,9 +1256,30 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const reduced = useReducedMotion();
+  const fade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (open) {
+      if (reduced) {
+        fade.setValue(0.45);
+      } else {
+        fade.setValue(0);
+        Animated.timing(fade, {
+          toValue: 0.45,
+          duration: motion.base,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+  }, [open, reduced]);
+
   return (
     <RNModal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.backdrop}>
+      <Animated.View style={[s.backdrop, { backgroundColor: fade.interpolate({
+        inputRange: [0, 0.45],
+        outputRange: ["rgba(15,23,42,0)", "rgba(15,23,42,0.45)"]
+      }) }]}>
         {/* Tapping the dimmed area closes — the expected gesture on a sheet. */}
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel={str.common.close} />
         <SafeAreaView edges={["bottom"]} style={s.sheet}>
@@ -1031,7 +1296,7 @@ export function Modal({
           </ScrollView>
           {!!footer && <View style={s.sheetFooter}>{footer}</View>}
         </SafeAreaView>
-      </View>
+      </Animated.View>
     </RNModal>
   );
 }

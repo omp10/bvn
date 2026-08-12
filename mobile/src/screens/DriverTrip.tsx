@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { Animated, Image, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { api, uploadPhoto, useAction, useQuery } from "../api";
 import { clearBuffer, useTripTracker } from "../tracker";
 import { ago, time } from "../format";
-import { colors, elevation, radius, space, tone } from "../theme";
+import { colors, elevation, motion, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
   Alert, Badge, Button, Card, Confirm, EmptyState, IconChip, LiveDot, Loading, Muted,
-  Screen, SectionHeader, StatTile, T,
+  Screen, SectionHeader, StatTile, T, useReducedMotion,
 } from "../ui";
 import { IconAlert, IconBus, IconCamera, IconCheck, IconClock, IconPin, IconUsers } from "../icons";
 import BusMap from "../BusMap";
@@ -41,6 +41,44 @@ export default function DriverTrip() {
 
   // Streams the position while a trip runs, and stops the moment it ends.
   const gps = useTripTracker(trip?._id ?? null);
+
+  /* The GPS panel's open/close animation. These four live up here with every
+     other hook for the reason stated above: they were added below the early
+     returns, which meant the first render (loading, no data) called four fewer
+     hooks than the second. That is React error #310 — "rendered more hooks
+     than during the previous render" — and it crashed the driver's Trip tab on
+     every single launch, which is the primary screen of the staff app. */
+  const [panelHeight] = useState(() => new Animated.Value(trip ? 1 : 0));
+  const [prevTrip, setPrevTrip] = useState(trip);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (trip && !prevTrip) {
+      setPrevTrip(trip);
+      if (reduced) {
+        panelHeight.setValue(1);
+      } else {
+        Animated.timing(panelHeight, {
+          toValue: 1,
+          duration: motion.base,
+          useNativeDriver: false,
+        }).start();
+      }
+    } else if (!trip && prevTrip) {
+      if (reduced) {
+        setPrevTrip(null);
+        panelHeight.setValue(0);
+      } else {
+        Animated.timing(panelHeight, {
+          toValue: 0,
+          duration: motion.base,
+          useNativeDriver: false,
+        }).start(() => {
+          setPrevTrip(null);
+        });
+      }
+    }
+  }, [trip, prevTrip, reduced]);
 
   if (loading && !data) return <Loading label={str.driver.finding} />;
 
@@ -125,9 +163,24 @@ export default function DriverTrip() {
           </View>
         </Card>
 
-        {trip ? (
+        {prevTrip ? (
           <>
-            <GpsPanel gps={gps} />
+            <Animated.View
+              style={{
+                maxHeight: panelHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 200],
+                }),
+                opacity: panelHeight,
+                overflow: "hidden",
+                marginBottom: panelHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, space(3)],
+                }),
+              }}
+            >
+              <GpsPanel gps={gps} />
+            </Animated.View>
 
             {/* A driver who does not know the phone can be put down keeps it in
                 their hand all morning. Say it where they are looking. */}
@@ -429,17 +482,62 @@ function SelfieCheckIn({
 export function GpsPanel({ gps }: { gps: ReturnType<typeof useTripTracker> }) {
   const healthy = gps.tracking && gps.lastFix && !gps.error;
 
+  const reduced = useReducedMotion();
+  const healthyAnim = useRef(new Animated.Value(healthy ? 1 : 0)).current;
+  const scaleAnim = useRef(new Animated.Value(healthy ? 1 : 0.8)).current;
+  const prevHealthy = useRef(healthy);
+
+  useEffect(() => {
+    if (healthy !== prevHealthy.current) {
+      if (reduced) {
+        healthyAnim.setValue(healthy ? 1 : 0);
+        scaleAnim.setValue(healthy ? 1 : 0.8);
+      } else {
+        Animated.parallel([
+          Animated.timing(healthyAnim, {
+            toValue: healthy ? 1 : 0,
+            duration: motion.base,
+            useNativeDriver: false,
+          }),
+          Animated.sequence([
+            Animated.timing(scaleAnim, {
+              toValue: healthy ? 1.2 : 0.8,
+              duration: motion.fast,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scaleAnim, {
+              toValue: healthy ? 1.0 : 0.8,
+              duration: motion.fast,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start();
+      }
+      prevHealthy.current = healthy;
+    }
+  }, [healthy, reduced]);
+
+  const backgroundColor = healthyAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.amber50, colors.leaf50],
+  });
+
+  const borderColor = healthyAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.amber400, colors.leaf400],
+  });
+
   return (
-    <View
+    <Animated.View
       style={[
         s.gps,
-        healthy
-          ? { backgroundColor: colors.leaf50, borderColor: colors.leaf400 }
-          : { backgroundColor: colors.amber50, borderColor: colors.amber400 },
+        { backgroundColor, borderColor },
       ]}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: space(3) }}>
-        {healthy ? <LiveDot color={colors.leaf600} size={12} /> : <IconPin size={20} color={colors.amber600} />}
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          {healthy ? <LiveDot color={colors.leaf600} size={12} /> : <IconPin size={20} color={colors.amber600} />}
+        </Animated.View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <T role="heading" color={healthy ? colors.leaf700 : colors.amber800}>
             {healthy ? str.driver.sharing : gps.tracking ? str.driver.gettingFix : str.driver.notSharing}
@@ -467,7 +565,7 @@ export function GpsPanel({ gps }: { gps: ReturnType<typeof useTripTracker> }) {
           {str.driver.queuedNote(gps.buffered)}
         </T>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

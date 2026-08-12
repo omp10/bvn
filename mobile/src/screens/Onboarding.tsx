@@ -84,6 +84,10 @@ const ART = {
   schoolCode: require("../../assets/onboarding/school-code.jpg"),
   staffWelcome: require("../../assets/onboarding/staff-welcome.jpg"),
   location: require("../../assets/onboarding/location.jpg"),
+  notifications: require("../../assets/onboarding/notifications.jpg"),
+  battery: require("../../assets/onboarding/battery.jpg"),
+  attendant: require("../../assets/onboarding/attendant.jpg"),
+  desk: require("../../assets/onboarding/desk.jpg"),
 };
 
 /**
@@ -102,10 +106,6 @@ const Illustration = ({ source, label }: { source: number; label: string }) => {
     />
   );
 };
-
-const Art = ({ children, bg = colors.brand50 }: { children: ReactNode; bg?: string }) => (
-  <View style={[s.art, { backgroundColor: bg }]}>{children}</View>
-);
 
 /* ── Step lists ────────────────────────────────────────────────────── */
 
@@ -154,11 +154,7 @@ function introSteps(onSkipToSignIn: () => void, appName: string): Step[] {
     },
     {
       key: "notify",
-      art: (
-        <Art>
-          <IconBell size={72} color={colors.brand600} />
-        </Art>
-      ),
+      art: <Illustration source={ART.notifications} label={str.onboarding.artNotifications} />,
       title: str.onboarding.notifyTitle,
       body: str.onboarding.notifyBody,
       bullets: [str.onboarding.notifyNear, str.onboarding.notifyBoards, str.onboarding.notifyDropped],
@@ -202,11 +198,7 @@ function roleSteps(role: string): Step[] {
       },
       {
         key: "battery",
-        art: (
-          <Art bg={colors.amber50}>
-            <IconShield size={72} color={colors.amber600} />
-          </Art>
-        ),
+        art: <Illustration source={ART.battery} label={str.onboarding.artBattery} />,
         title: str.onboarding.batteryTitle,
         body: str.onboarding.batteryBody,
         extra: (
@@ -250,11 +242,7 @@ function roleSteps(role: string): Step[] {
     return [
       {
         key: "attendant",
-        art: (
-          <Art>
-            <IconUsers size={72} color={colors.brand600} />
-          </Art>
-        ),
+        art: <Illustration source={ART.attendant} label={str.onboarding.artAttendant} />,
         title: str.onboarding.attendantTitle,
         body: str.onboarding.attendantBody,
         bullets: [str.onboarding.attendantBulk, str.onboarding.attendantParents],
@@ -266,11 +254,7 @@ function roleSteps(role: string): Step[] {
   return [
     {
       key: "desk",
-      art: (
-        <Art>
-          <IconSchool size={72} color={colors.brand600} />
-        </Art>
-      ),
+      art: <Illustration source={ART.desk} label={str.onboarding.artDesk} />,
       title: str.onboarding.deskTitle,
       body: str.onboarding.deskBody,
       primaryLabel: str.onboarding.deskDone,
@@ -424,15 +408,6 @@ const s = StyleSheet.create({
     gap: space(4),
     borderTopWidth: 1,
     borderTopColor: colors.slate100,
-  },
-
-  art: {
-    alignSelf: "center",
-    width: 168,
-    height: 168,
-    borderRadius: 84,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   warnCard: {

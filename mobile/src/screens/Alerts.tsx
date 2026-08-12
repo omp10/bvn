@@ -6,7 +6,7 @@ import { useUnread } from "../unread";
 import { colors, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
-  Button, Card, EmptyState, IconChip, LiveDot, Muted, Screen, SkeletonRow, T,
+  Button, Card, CrossFade, EmptyState, Enter, IconChip, LiveDot, Muted, Screen, SkeletonRow, T,
 } from "../ui";
 import { IconAlert, IconBell } from "../icons";
 
@@ -38,45 +38,49 @@ export default function Alerts() {
     });
 
   return (
-    <Screen refreshing={loading} onRefresh={reload}>
-      {(data?.unread ?? 0) > 0 && (
-        <Button variant="secondary" block onPress={markAllRead}>
-          {str.alerts.markAllRead(data!.unread)}
-        </Button>
-      )}
+    <CrossFade
+      loading={loading && !data}
+      skeleton={
+        <Screen>
+          <Card>
+            <View style={{ gap: space(4) }}>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </View>
+          </Card>
+        </Screen>
+      }
+    >
+      <Screen refreshing={loading} onRefresh={reload}>
+        {(data?.unread ?? 0) > 0 && (
+          <Button variant="secondary" block onPress={markAllRead}>
+            {str.alerts.markAllRead(data!.unread)}
+          </Button>
+        )}
 
-      {loading && !data && (
-        <Card>
-          <View style={{ gap: space(4) }}>
-            <SkeletonRow />
-            <SkeletonRow />
-            <SkeletonRow />
-          </View>
-        </Card>
-      )}
+        {data?.items.length === 0 && (
+          <Card>
+            <EmptyState art={require("../../assets/empty/no-alerts.png")} title={str.alerts.noneTitle} hint={str.alerts.noneHint} />
+          </Card>
+        )}
 
-      {data?.items.length === 0 && (
-        <Card>
-          <EmptyState title={str.alerts.noneTitle} hint={str.alerts.noneHint} />
-        </Card>
-      )}
+        {data?.items.map((n, i) => {
+          const urgent = n.type === "emergency";
+          const unreadRow = !n.readAt;
 
-      {data?.items.map((n) => {
-        const urgent = n.type === "emergency";
-        const unreadRow = !n.readAt;
-
-        return (
-          <View
-            key={n._id}
-            style={[
-              s.item,
-              urgent && { backgroundColor: colors.red50, borderColor: colors.red500 },
-              !urgent && unreadRow && { backgroundColor: colors.brand50, borderColor: colors.brand200 },
-              // An emergency reads differently at a glance, not just in colour:
-              // the red edge is the thing you see before you read anything.
-              urgent && s.urgentEdge,
-            ]}
-          >
+          return (
+            <Enter delay={i < 8 ? i * 30 : 0} key={n._id}>
+              <View
+                style={[
+                  s.item,
+                  urgent && { backgroundColor: colors.red50, borderColor: colors.red500 },
+                  !urgent && unreadRow && { backgroundColor: colors.brand50, borderColor: colors.brand200 },
+                  // An emergency reads differently at a glance, not just in colour:
+                  // the red edge is the thing you see before you read anything.
+                  urgent && s.urgentEdge,
+                ]}
+              >
             <IconChip bg={urgent ? colors.white : unreadRow ? colors.white : colors.slate100}>
               {urgent ? (
                 <IconAlert size={18} color={tone.danger} />
@@ -108,9 +112,11 @@ export default function Alerts() {
               </View>
             )}
           </View>
+          </Enter>
         );
       })}
     </Screen>
+    </CrossFade>
   );
 }
 

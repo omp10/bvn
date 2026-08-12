@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { api, useAction, useQuery } from "../api";
 import { useSocket } from "../socket";
 import { classOf } from "../format";
-import { colors, elevation, radius, space, tone } from "../theme";
+import { colors, elevation, motion, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
-  Alert, Avatar, Badge, Button, Card, Confirm, EmptyState, ErrorState, Field, IconChip, Modal, Muted, Screen, SkeletonRow, StatTile, T, tick,
+  Alert, Avatar, Badge, Button, Card, Confirm, CrossFade, EmptyState, Enter, ErrorState, Field, IconChip, Modal, Muted, Screen, SkeletonRow, StatTile, T, tick, useReducedMotion,
 } from "../ui";
 import { IconBus, IconCheck } from "../icons";
 import EmergencySheet from "./EmergencySheet";
@@ -121,20 +121,6 @@ export default function Roster({
     });
   }, [students, search, filter]);
 
-  if (loading && !data) {
-    return (
-      <Screen>
-        <Card>
-          <View style={{ gap: space(4) }}>
-            <SkeletonRow />
-            <SkeletonRow />
-            <SkeletonRow />
-          </View>
-        </Card>
-      </Screen>
-    );
-  }
-
   if (error) return <Screen><ErrorState message={error} onRetry={reload} /></Screen>;
 
   const trip = data?.trip;
@@ -172,8 +158,22 @@ export default function Roster({
 
   return (
     <View style={{ flex: 1 }}>
-      <Screen refreshing={loading} onRefresh={reload}>
-        <Alert>{markError}</Alert>
+      <CrossFade
+        loading={loading && !data}
+        skeleton={
+          <Screen>
+            <Card>
+              <View style={{ gap: space(4) }}>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </View>
+            </Card>
+          </Screen>
+        }
+      >
+        <Screen refreshing={loading} onRefresh={reload}>
+          <Alert>{markError}</Alert>
 
         {!!data?.vehicle && (
           <Card>
@@ -243,16 +243,17 @@ export default function Roster({
           </Card>
         )}
 
-        {visible.map((student) => (
-          <Row
-            key={student._id}
-            student={student}
-            trip={trip}
-            busy={busy || bulkBusy}
-            pending={pending}
-            onMark={mark}
-            onOpen={() => setSheetFor(student)}
-          />
+        {visible.map((student, i) => (
+          <Enter delay={i < 8 ? i * 30 : 0} key={student._id}>
+            <Row
+              student={student}
+              trip={trip}
+              busy={busy || bulkBusy}
+              pending={pending}
+              onMark={mark}
+              onOpen={() => setSheetFor(student)}
+            />
+          </Enter>
         ))}
 
         {!visible.length && students.length > 0 && (
@@ -263,7 +264,7 @@ export default function Roster({
 
         {!students.length && (
           <Card>
-            <EmptyState title={str.roster.noStudentsTitle} hint={str.roster.noStudentsHint} />
+            <EmptyState art={require("../../assets/empty/no-students.png")} title={str.roster.noStudentsTitle} hint={str.roster.noStudentsHint} />
           </Card>
         )}
 
@@ -276,6 +277,7 @@ export default function Roster({
         {/* Room for the sticky bar, so the last child is never under it. */}
         {bulk && !!trip && <View style={{ height: space(14) }} />}
       </Screen>
+    </CrossFade>
 
       {bulk && !!trip && (
         <View style={s.stickyBar}>
@@ -352,55 +354,108 @@ function Row({
   const next = nextEvent(status);
   const stop = trip?.type === "evening" ? student.dropStop : student.pickupStop;
 
+  // B2 Animations
+  const reduced = useReducedMotion();
+  const prevStatus = useRef(status);
+  const bgAnim = useRef(new Animated.Value(status === "waiting" ? 0 : 1)).current;
+  const badgeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (status !== prevStatus.current) {
+      if (reduced) {
+        bgAnim.setValue(status === "waiting" ? 0 : 1);
+        badgeAnim.setValue(1);
+      } else {
+        // Run background color wash timing
+        Animated.timing(bgAnim, {
+          toValue: status === "waiting" ? 0 : 1,
+          duration: motion.fast,
+          useNativeDriver: false,
+        }).start();
+
+        // Run badge scale pop
+        badgeAnim.setValue(0.8);
+        Animated.timing(badgeAnim, {
+          toValue: 1,
+          duration: motion.fast,
+          useNativeDriver: true,
+        }).start();
+      }
+      prevStatus.current = status;
+    }
+  }, [status, reduced]);
+
+  // Determine target background and border colors
+  const targetBg = status === "boarded" ? colors.brand50 : status === "absent" ? colors.slate100 : colors.leaf50;
+  const targetBorder = status === "boarded" ? colors.brand200 : status === "absent" ? tone.border : colors.leaf100;
+
+  const backgroundColor = bgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.white, targetBg],
+  });
+
+  const borderColor = bgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [tone.border, targetBorder],
+  });
+
   return (
-    <Pressable
-      onPress={trip ? onOpen : undefined}
-      accessibilityRole={trip ? "button" : undefined}
-      accessibilityLabel={trip ? str.roster.changeFor(student.name) : undefined}
-      style={({ pressed }) => [
-        s.row,
-        status !== "waiting" && { backgroundColor: colors.leaf50, borderColor: colors.leaf100 },
-        status === "absent" && { backgroundColor: colors.slate100, borderColor: tone.border },
-        pressed && { opacity: 0.85 },
-      ]}
-    >
-      <Avatar name={student.name} photoUrl={student.photoUrl} size={44} />
+    <Animated.View style={{
+      borderWidth: 1,
+      borderRadius: radius.card,
+      overflow: "hidden",
+      backgroundColor,
+      borderColor,
+      ...elevation.raised,
+    }}>
+      <Pressable
+        onPress={trip ? onOpen : undefined}
+        accessibilityRole={trip ? "button" : undefined}
+        accessibilityLabel={trip ? str.roster.changeFor(student.name) : undefined}
+        style={({ pressed }) => [
+          { flexDirection: "row", alignItems: "center", gap: space(3), padding: space(3) },
+          pressed && { opacity: 0.85 },
+        ]}
+      >
+        <Avatar name={student.name} photoUrl={student.photoUrl} size={44} />
 
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <T role="body" weight="700" numberOfLines={1}>
-          {student.name}
-        </T>
-        <Muted numberOfLines={1}>
-          {[classOf(student), student.rollNo ? str.roster.roll(student.rollNo) : null]
-            .filter(Boolean)
-            .join(" · ")}
-        </Muted>
-        {!!stop && (
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <T role="body" weight="700" numberOfLines={1}>
+            {student.name}
+          </T>
           <Muted numberOfLines={1}>
-            {trip?.type === "evening" ? str.roster.drop(stop) : str.roster.pickup(stop)}
+            {[classOf(student), student.rollNo ? str.roster.roll(student.rollNo) : null]
+              .filter(Boolean)
+              .join(" · ")}
           </Muted>
-        )}
-      </View>
+          {!!stop && (
+            <Muted numberOfLines={1}>
+              {trip?.type === "evening" ? str.roster.drop(stop) : str.roster.pickup(stop)}
+            </Muted>
+          )}
+        </View>
 
-      {!trip ? null : next ? (
-        <Pressable
-          onPress={() => onMark(student._id, next)}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel={next === "boarded" ? str.roster.markBoarded : str.roster.markDropped}
-          style={({ pressed }) => [
-            s.markButton,
-            { backgroundColor: next === "boarded" ? colors.brand600 : tone.success },
-            (pressed || pending === student._id + next) && { opacity: 0.7 },
-          ]}
-        >
-          <IconCheck size={26} color={colors.white} />
-        </Pressable>
-      ) : (
-        // Colour is never the only carrier — the pill says the word too.
-        <Badge value={status} />
-      )}
-    </Pressable>
+        {!trip ? null : next ? (
+          <Pressable
+            onPress={() => onMark(student._id, next)}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={next === "boarded" ? str.roster.markBoarded : str.roster.markDropped}
+            style={({ pressed }) => [
+              s.markButton,
+              { backgroundColor: next === "boarded" ? colors.brand600 : tone.success },
+              (pressed || pending === student._id + next) && { opacity: 0.7 },
+            ]}
+          >
+            <IconCheck size={26} color={colors.white} />
+          </Pressable>
+        ) : (
+          <Animated.View style={{ transform: [{ scale: badgeAnim }] }}>
+            <Badge value={status} />
+          </Animated.View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 

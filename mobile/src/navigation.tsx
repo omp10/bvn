@@ -1,5 +1,5 @@
-import { useCallback, useRef, type ReactElement } from "react";
-import { Pressable, View } from "react-native";
+import { useCallback, useRef, useEffect, useState, type ReactElement } from "react";
+import { Animated, Pressable, View } from "react-native";
 import {
   NavigationContainer,
   createNavigationContainerRef,
@@ -12,9 +12,9 @@ import { useAuth } from "./auth";
 import { useBrand } from "./brand";
 import { UnreadProvider, useUnread } from "./unread";
 import { useNotificationTaps } from "./push";
-import { colors, space, tone, VARIANT } from "./theme";
+import { colors, motion, space, tone, VARIANT } from "./theme";
 import { str } from "./strings";
-import { Button, Loading, Muted, Screen, SchoolLogo, T } from "./ui";
+import { Button, Loading, Muted, Screen, SchoolLogo, T, useReducedMotion } from "./ui";
 import {
   IconBell, IconBus, IconHistory, IconHome, IconMap, IconUser, IconUsers,
 } from "./icons";
@@ -115,6 +115,66 @@ const STACK_SCREENS: Record<string, { name: string; title: string; component: Re
 function AlertsBell() {
   const { unread } = useUnread();
   const brand = useBrand();
+  const reduced = useReducedMotion();
+
+  const bellAnim = useRef(new Animated.Value(0)).current;
+  const badgeAnim = useRef(new Animated.Value(unread > 0 ? 1 : 0)).current;
+  const prevUnread = useRef(unread);
+
+  useEffect(() => {
+    if (unread > prevUnread.current) {
+      if (reduced) {
+        bellAnim.setValue(0);
+        badgeAnim.setValue(unread > 0 ? 1 : 0);
+      } else {
+        // Swing the bell: rotate slightly left, right, back to center
+        bellAnim.setValue(0);
+        Animated.sequence([
+          Animated.timing(bellAnim, {
+            toValue: 1, // 15 degrees left
+            duration: 75,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bellAnim, {
+            toValue: -1, // 15 degrees right
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bellAnim, {
+            toValue: 0.5, // 8 degrees left
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bellAnim, {
+            toValue: -0.5, // 8 degrees right
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bellAnim, {
+            toValue: 0,
+            duration: 75,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Pop the badge scale
+        badgeAnim.setValue(0.6);
+        Animated.spring(badgeAnim, {
+          toValue: 1,
+          friction: 4,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else if (unread !== prevUnread.current) {
+      badgeAnim.setValue(unread > 0 ? 1 : 0);
+    }
+    prevUnread.current = unread;
+  }, [unread, reduced]);
+
+  const rotation = bellAnim.interpolate({
+    inputRange: [-1, 1],
+    outputRange: ["-15deg", "15deg"],
+  });
 
   return (
     <Pressable
@@ -124,9 +184,11 @@ function AlertsBell() {
       hitSlop={10}
       style={({ pressed }) => [{ padding: space(2), marginRight: space(1) }, pressed && { opacity: 0.6 }]}
     >
-      <IconBell size={24} color={tone.textSecondary} />
+      <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+        <IconBell size={24} color={tone.textSecondary} />
+      </Animated.View>
       {unread > 0 && (
-        <View
+        <Animated.View
           style={{
             position: "absolute",
             top: space(1),
@@ -140,12 +202,13 @@ function AlertsBell() {
             borderColor: colors.white,
             alignItems: "center",
             justifyContent: "center",
+            transform: [{ scale: badgeAnim }],
           }}
         >
           <T size={10} weight="800" color={colors.white}>
             {unread > 9 ? "9+" : unread}
           </T>
-        </View>
+        </Animated.View>
       )}
       {/* The school's colour reads on the bell too, as a hairline under it, so
           the header is branded even when there is nothing unread. */}
@@ -165,6 +228,40 @@ const theme = {
     border: tone.border,
   },
 };
+
+function AnimatedTabIcon({ tab, color, size, focused }: { tab: any; color: string; size: number; focused: boolean }) {
+  const reduced = useReducedMotion();
+  const scale = useRef(new Animated.Value(1)).current;
+  const prevFocused = useRef(focused);
+
+  useEffect(() => {
+    if (focused && !prevFocused.current) {
+      if (reduced) {
+        scale.setValue(1);
+      } else {
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 0.85,
+            duration: motion.fast / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: motion.fast / 2,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    }
+    prevFocused.current = focused;
+  }, [focused, reduced]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      {tab.icon({ size, color })}
+    </Animated.View>
+  );
+}
 
 function Tabs({ role }: { role: string }) {
   const brand = useBrand();
@@ -199,7 +296,9 @@ function Tabs({ role }: { role: string }) {
           component={tab.component}
           options={{
             title: tab.title,
-            tabBarIcon: ({ color, size }) => tab.icon({ size, color }),
+            tabBarIcon: ({ color, size, focused }) => (
+              <AnimatedTabIcon tab={tab} color={color} size={size} focused={focused} />
+            ),
           }}
         />
       ))}

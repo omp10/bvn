@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { Animated, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api, useAction, usePolling, useQuery } from "../api";
 import { useSocket, useTripRoom } from "../socket";
 import { ago, classOf, time } from "../format";
 import { metresBetween, prettyDistance } from "../geo";
-import { colors, elevation, radius, space, tone } from "../theme";
+import { colors, elevation, motion, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
-  Alert, Avatar, Button, Card, Chip, EmptyState, Enter, ErrorState, Field, IconChip, LiveDot, Modal,
-  Muted, Screen, SectionHeader, Shield, Skeleton, T, Timeline,
+  Alert, Avatar, Button, Card, Chip, CrossFade, EmptyState, Enter, ErrorState, Field, IconChip, LiveDot, Modal,
+  Muted, Screen, SectionHeader, Shield, Skeleton, T, Timeline, useReducedMotion,
 } from "../ui";
 import { IconAlert, IconCheck, IconClock, IconPhone, IconPin, IconSchool } from "../icons";
 import BusMap from "../BusMap";
@@ -64,25 +64,24 @@ export default function ParentHome() {
     [live.data]
   );
 
-  if (children.loading && !children.data) return <HomeSkeleton />;
   if (children.error) return <Screen><ErrorState message={children.error} onRetry={children.reload} /></Screen>;
 
-  if (!children.data?.length) {
+  if (!children.loading && !children.data?.length) {
     return (
       <Screen>
         <Card>
-          <EmptyState title={str.parent.noChildrenTitle} hint={str.parent.noChildrenHint} />
+          <EmptyState art={require("../../assets/empty/no-children.png")} title={str.parent.noChildrenTitle} hint={str.parent.noChildrenHint} />
         </Card>
       </Screen>
     );
   }
 
-  const child = children.data.find((c) => c._id === childId) ?? children.data[0];
+  const child = children.data?.find((c) => c._id === childId) ?? children.data?.[0] ?? { _id: "", name: "", routeId: { _id: "", name: "", stops: [] } } as any;
   const status = live.data?.status;
   const running = status === "running";
   const childStatus: string | null = live.data?.childStatus ?? null;
 
-  const stopById = (id?: string) => child.routeId?.stops?.find((s) => String(s._id) === String(id)) ?? null;
+  const stopById = (id?: string) => child.routeId?.stops?.find((s: any) => String(s._id) === String(id)) ?? null;
   /* The live endpoint only names the stop while a trip runs. Before the bus sets
      off, fall back to the child's own assignment — saying "not set" when a stop
      exists is worse than saying nothing. */
@@ -102,8 +101,9 @@ export default function ParentHome() {
   const settled = childStatus === "dropped" || childStatus === "absent";
 
   return (
-    <Screen refreshing={live.loading} onRefresh={() => { children.reload(); live.reload(); }}>
-      {children.data.length > 1 && (
+    <CrossFade loading={children.loading && !children.data} skeleton={<HomeSkeleton />}>
+      <Screen refreshing={live.loading} onRefresh={() => { children.reload(); live.reload(); }}>
+      {children.data && children.data.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
           {children.data.map((c) => (
             <Chip
@@ -195,7 +195,8 @@ export default function ParentHome() {
         pickup={stopById(child.pickupStopId)?.name}
         drop={stopById(child.dropStopId)?.name}
       />
-    </Screen>
+      </Screen>
+    </CrossFade>
   );
 }
 
@@ -250,7 +251,7 @@ function WaitingHero({
   onDetails: () => void;
 }) {
   return (
-    <Shield style={s.hero}>
+    <Shield ambient style={s.hero}>
       <HeroHead child={child} onPress={onDetails} />
       <View style={s.waitBox}>
         <IconClock size={20} color={colors.white} />
@@ -281,8 +282,58 @@ function RunningHero({
 }) {
   const eta = live?.etaMinutes;
 
+  // B1 Animation Setup
+  const [currentEta, setCurrentEta] = useState<number | undefined>(eta);
+  const [prevEta, setPrevEta] = useState<number | null>(null);
+  const anim = useRef(new Animated.Value(0)).current;
+  const isFirst = useRef(true);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (eta === currentEta) return;
+    if (isFirst.current) {
+      setCurrentEta(eta);
+      isFirst.current = false;
+      return;
+    }
+
+    if (reduced) {
+      setCurrentEta(eta);
+      setPrevEta(null);
+      return;
+    }
+
+    setPrevEta(currentEta ?? null);
+    setCurrentEta(eta);
+    anim.setValue(0);
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: motion.base,
+      useNativeDriver: true,
+    }).start(() => {
+      setPrevEta(null);
+    });
+  }, [eta, currentEta, reduced]);
+
+  const oldOpacity = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
+  const oldTranslateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -12],
+  });
+  const newOpacity = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+  const newTranslateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [12, 0],
+  });
+
   return (
-    <Shield style={s.hero}>
+    <Shield ambient style={s.hero}>
       <HeroHead
         child={child}
         onPress={onDetails}
@@ -297,11 +348,29 @@ function RunningHero({
       />
 
       <View style={{ marginTop: space(5) }}>
-        {eta != null ? (
+        {currentEta != null ? (
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: space(2) }}>
-            <T role="display" color={colors.white}>
-              {eta}
-            </T>
+            <View style={{ height: 52, justifyContent: "flex-end", overflow: "hidden" }}>
+              {prevEta !== null && !reduced && (
+                <Animated.View style={{
+                  position: "absolute",
+                  opacity: oldOpacity,
+                  transform: [{ translateY: oldTranslateY }]
+                }}>
+                  <T role="display" color={colors.white}>
+                    {prevEta}
+                  </T>
+                </Animated.View>
+              )}
+              <Animated.View style={!reduced && prevEta !== null ? {
+                opacity: newOpacity,
+                transform: [{ translateY: newTranslateY }]
+              } : undefined}>
+                <T role="display" color={colors.white}>
+                  {currentEta}
+                </T>
+              </Animated.View>
+            </View>
             <T role="body" color={tone.textOnDarkMuted} style={{ marginBottom: space(2.5) }}>
               {str.parent.minToStop}
             </T>

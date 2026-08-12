@@ -5,7 +5,7 @@ import { date, time } from "../format";
 import { colors, space } from "../theme";
 import { str } from "../strings";
 import {
-  Avatar, Card, Chip, Divider, EmptyState, ErrorState, IconChip, ListRow, Screen, SectionHeader,
+  Avatar, Card, Chip, CrossFade, Divider, EmptyState, Enter, ErrorState, IconChip, ListRow, Screen, SectionHeader,
   SkeletonRow,
 } from "../ui";
 import { IconAlert, IconBus, IconSchool } from "../icons";
@@ -36,65 +36,87 @@ export default function ParentHistory() {
   );
 
   return (
-    <Screen refreshing={history.loading} onRefresh={history.reload}>
-      {(children.data?.length ?? 0) > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
-          {children.data!.map((c) => (
-            <Chip
-              key={c._id}
-              label={c.name.split(" ")[0]}
-              selected={c._id === id}
-              onPress={() => setChildId(c._id)}
-              icon={<Avatar name={c.name} photoUrl={c.photoUrl} size={24} onDark={c._id === id} />}
-            />
-          ))}
-        </ScrollView>
-      )}
-
-      {history.loading && !history.data && (
-        <Card>
-          <View style={{ gap: space(4) }}>
-            <SkeletonRow />
-            <SkeletonRow />
-          </View>
-        </Card>
-      )}
-
-      {!!history.error && <ErrorState message={history.error} onRetry={history.reload} />}
-
-      {history.data?.length === 0 && (
-        <Card>
-          <EmptyState title={str.history.noneTitle} hint={str.history.noneHint} />
-        </Card>
-      )}
-
-      {/* Grouped by day with the date as a run-in header rather than a card
-          title, so a week reads as a week instead of seven identical boxes. */}
-      {history.data?.map((day) => (
-        <View key={day.date} style={{ gap: space(2) }}>
-          <SectionHeader>{date(day.date)}</SectionHeader>
-          <Card padded={false}>
-            {day.events.map((event, i) => {
-              const look = LOOK[event.event] ?? LOOK.absent;
-              const Icon = look.icon;
-              return (
-                <View key={event._id}>
-                  {i > 0 && <Divider />}
-                  <ListRow
-                    icon={
-                      <IconChip bg={look.bg}>
-                        <Icon size={18} color={look.fg} />
-                      </IconChip>
-                    }
-                    title={look.label}
-                    value={time(event.at)}
-                  />
-                </View>
-              );
-            })}
+    <CrossFade
+      loading={history.loading && !history.data}
+      skeleton={
+        <Screen>
+          {(children.data?.length ?? 0) > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
+              {children.data!.map((c) => (
+                <Chip
+                  key={c._id}
+                  label={c.name.split(" ")[0]}
+                  selected={c._id === id}
+                  onPress={() => setChildId(c._id)}
+                  icon={<Avatar name={c.name} photoUrl={c.photoUrl} size={24} onDark={c._id === id} />}
+                />
+              ))}
+            </ScrollView>
+          )}
+          <Card style={{ marginTop: (children.data?.length ?? 0) > 1 ? space(3) : 0 }}>
+            <View style={{ gap: space(4) }}>
+              <SkeletonRow />
+              <SkeletonRow />
+            </View>
           </Card>
-        </View>
-      ))}
-    </Screen>
+        </Screen>
+      }
+    >
+      <Screen refreshing={history.loading} onRefresh={history.reload}>
+        {(children.data?.length ?? 0) > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
+            {children.data!.map((c) => (
+              <Chip
+                key={c._id}
+                label={c.name.split(" ")[0]}
+                selected={c._id === id}
+                onPress={() => setChildId(c._id)}
+                icon={<Avatar name={c.name} photoUrl={c.photoUrl} size={24} onDark={c._id === id} />}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        {!!history.error && <ErrorState message={history.error} onRetry={history.reload} />}
+
+        {history.data?.length === 0 && (
+          <Card>
+            <EmptyState art={require("../../assets/empty/no-history.png")} title={str.history.noneTitle} hint={str.history.noneHint} />
+          </Card>
+        )}
+
+        {(() => {
+          let globalIndex = 0;
+          return history.data?.map((day) => (
+            <View key={day.date} style={{ gap: space(2) }}>
+              <SectionHeader>{date(day.date)}</SectionHeader>
+              <Card padded={false}>
+                {day.events.map((event, i) => {
+                  const look = LOOK[event.event] ?? LOOK.absent;
+                  const Icon = look.icon;
+                  const currentIndex = globalIndex++;
+                  return (
+                    <Enter delay={currentIndex < 8 ? currentIndex * 30 : 0} key={event._id}>
+                      <View>
+                        {i > 0 && <Divider />}
+                        <ListRow
+                          icon={
+                            <IconChip bg={look.bg}>
+                              <Icon size={18} color={look.fg} />
+                            </IconChip>
+                          }
+                          title={look.label}
+                          value={time(event.at)}
+                        />
+                      </View>
+                    </Enter>
+                  );
+                })}
+              </Card>
+            </View>
+          ));
+        })()}
+      </Screen>
+    </CrossFade>
   );
 }

@@ -106,7 +106,7 @@ export default function Overview() {
 
   return (
     <Screen refreshing={loading} onRefresh={reload}>
-      <Shield style={s.hero}>
+      <Shield ambient style={s.hero}>
         <T role="label" weight="400" color={tone.textOnDarkMuted} numberOfLines={1}>
           {school?.name ?? appName}
         </T>

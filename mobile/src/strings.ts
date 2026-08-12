@@ -338,6 +338,10 @@ export const str = {
       "A school circular with the six-character code circled in yellow marker, and a QR code printed beside it",
     artStaffWelcome: "A driver in uniform standing beside a yellow school bus",
     artLocation: "A phone in a bus cradle showing a map with a location pin",
+    artNotifications: "A phone in a parent's hand displaying a notification card from the app next to a gentle radiating bell",
+    artBattery: "A phone in a dashboard cradle showing a full battery icon and a small shield with looping arrows",
+    artAttendant: "A bus attendant in a saree helping a child in a school uniform board a yellow bus, holding a clipboard",
+    artDesk: "A school office desk with a laptop displaying a colorful dashboard, a potted plant, and a mug",
 
     haveAccount: "I already have an account",
     maybeLater: "Maybe later",

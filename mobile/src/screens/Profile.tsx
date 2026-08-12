@@ -52,7 +52,7 @@ export default function Profile() {
     <Screen>
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: space(4) }}>
-          <Avatar name={user.name} photoUrl={user.photoUrl} size={64} />
+          <Avatar name={user.name} photoUrl={user.photoUrl} size={64} illustrated={false} />
           <View style={{ flex: 1, minWidth: 0, gap: space(1) }}>
             <T role="title" size={20} numberOfLines={1}>
               {user.name}
