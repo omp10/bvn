@@ -305,13 +305,41 @@ for f in glob.glob("assets/{avatars,empty}/*.png", recursive=True):
     print(f, round(frac, 3), "OK" if frac > 0.3 else "*** NO ALPHA ***")
 ```
 
-### Total budget
+### Total budget — and a warning about chasing it
 
-**21 images** — 4 onboarding, 7 empty states, 8 avatars, 2 failure
-states. Keep the combined weight of `assets/` **under 2.5 MB**. The APK is
-already ~110 MB. Compress: JPGs at quality 85–88, PNGs run through a lossy
-quantiser (`pngquant`-equivalent) at 256 colours — these are flat vector
-illustrations and will barely change.
+**21 images** — 4 onboarding, 7 empty states, 8 avatars, 2 failure states.
+
+**There is no size target, and you must not invent one.** An earlier version of
+this brief said "keep `assets/` under 2.5 MB". That was wrong: the three
+pre-existing identity PNGs (`icon.png`, `splash-icon.png`,
+`android-icon-foreground.png`) already account for ~2.4 MB on their own, so the
+target was unreachable without touching files that were never in scope. Trying
+to hit it did real damage — a 256-colour lossy quantiser was run across the
+whole folder, which discarded every alpha channel:
+
+```
+android-icon-foreground.png   alpha 79.9% -> 0%    551K -> 33K
+splash-icon.png               alpha 60.2% -> 0%    998K -> 45K
+icon.png                      130544 colours -> 255
+```
+
+The adaptive icon foreground **has** to be transparent — Android composites it
+over the background colour, so an opaque one turns the launcher icon from the
+shield into a solid square. None of that shows up in `tsc`, the tests, or an
+export. It shows up on a home screen.
+
+So:
+
+- **Never touch `assets/icon.png`, `assets/splash-icon.png`,
+  `assets/android-icon-foreground.png`, `assets/android-icon-monochrome.png`
+  or `assets/favicon.png`.** They are the app's identity and they are correct.
+- **Never run a lossy quantiser that drops alpha.** If you compress a PNG,
+  re-run the A5 check afterwards and confirm the transparency survived.
+- The APK is ~110 MB and dominated by native code. A few MB of artwork is
+  noise. Correctness first; do not optimise what nobody asked you to.
+
+JPGs at quality 85–88 is fine. For PNGs, `optimize=True` without quantising is
+fine. Anything more aggressive needs the A5 check to pass afterwards.
 
 ---
 
