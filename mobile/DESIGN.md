@@ -239,12 +239,13 @@ Nothing is padded to a fixed width, so a string 40% longer still fits.
 - **A native map.** `react-native-maps` on Android is Google Maps, which is an
   API key and a billing account. `BusMap`'s props are the whole contract if that
   ever changes.
-- **The signed-in person's own photo in Profile.** `publicUser` in
-  `auth.service.ts` does not project `photoUrl`, so `/auth/me` never sends it
-  and the account screen falls back to initials. Adding the field is a one-line
-  additive backend change — left alone because the brief forbids changing what
-  an endpoint sends, and it cannot be deployed or tested while the server is
-  down. Student photos are unaffected; those endpoints already send it.
+**One backend change was made**, deliberately and additively: `publicUser` in
+`auth.service.ts` now projects `photoUrl`. The office could already set it —
+`/uploads/people/:id/photo` writes it and `/people` accepts it — but it was
+never sent, so the phone apps had a photo on file and no way to know. Adding a
+field cannot break the web app, which reads the fields it names; both
+typecheck, and the backend's 19 tests still pass. **It needs deploying before
+Profile shows anything but initials.**
 
 ## 6a. Dynamic values
 
@@ -252,7 +253,9 @@ Nothing user-visible is a literal where the data exists to make it real:
 
 - **Photos** resolve through `assetUrl` **inside `Avatar`**, so every caller is
   correct by construction. The API sends `/uploads/…`; `Image` needs an origin,
-  and passing the raw path silently rendered a blank circle.
+  and passing the raw path silently rendered a blank circle. Covers students
+  (roster, child switcher, parent hero) and, once the backend above ships, the
+  signed-in person on Profile.
 - **App name** comes from `useBrand().appName` on the sign-in header, the staff
   welcome screen and the overview hero — so a school that has set its own name
   sees it, not ours.

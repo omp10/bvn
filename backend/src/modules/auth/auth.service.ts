@@ -30,11 +30,17 @@ export async function permissionsFor(user: { role: string; roleId?: unknown }) {
 
 export const publicUser = (user: {
   _id: unknown; name: string; phone: string; role: RoleName; schoolId?: unknown; roleId?: unknown;
+  photoUrl?: string | null;
 }) => ({
   id: String(user._id),
   name: user.name,
   phone: user.phone,
   role: user.role,
+  /* The office already sets this — `/uploads/people/:id/photo` writes it and
+     `/people` accepts it — but it was never projected, so the phone apps had a
+     photo on file and no way to know. Additive: the web app reads the fields it
+     names and ignores the rest. */
+  photoUrl: user.photoUrl ?? null,
   schoolId: user.schoolId ? String(user.schoolId) : null,
   roleId: user.roleId ? String(user.roleId) : null,
 });

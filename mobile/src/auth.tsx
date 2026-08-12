@@ -6,7 +6,15 @@ import { VARIANT } from "./theme";
 
 export type Role = "super_admin" | "school_admin" | "owner" | "driver" | "staff" | "parent";
 
-export type User = { id: string; name: string; phone: string; role: Role; schoolId: string | null };
+export type User = {
+  id: string;
+  name: string;
+  phone: string;
+  role: Role;
+  /** Server-relative; `Avatar` resolves it. Null until the office uploads one. */
+  photoUrl: string | null;
+  schoolId: string | null;
+};
 export type School = {
   id: string;
   name: string;
