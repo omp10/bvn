@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { api, useAction } from "../api";
 import { useAuth, type School, type Session } from "../auth";
 import { previewBrand } from "../Branded";
 import { normaliseCode, normaliseOtp, normalisePhone } from "../input";
-import { colors } from "../theme";
+import { space } from "../theme";
+import { str } from "../strings";
 import { Alert, Button, Field, Muted, SchoolLogo, T } from "../ui";
 import AuthLayout from "./AuthLayout";
 import QrScanner from "./QrScanner";
@@ -47,16 +48,16 @@ export default function ParentLogin() {
     <AuthLayout>
       {step === "identify" ? (
         <>
-          <T size={22} weight="800">Track your child's bus</T>
-          <Muted size={13} style={{ marginTop: 4, marginBottom: 18, lineHeight: 18 }}>
-            Enter the school code printed on the circular from your school.
+          <T role="title">{str.auth.parentTitle}</T>
+          <Muted role="body" style={{ marginTop: space(1), marginBottom: space(4.5) }}>
+            {str.auth.parentHelp}
           </Muted>
 
-          <View style={{ gap: 14 }}>
+          <View style={{ gap: space(3.5) }}>
             <Alert>{error}</Alert>
             <Field
-              label="School code"
-              placeholder="ABC123"
+              label={str.auth.schoolCode}
+              placeholder={str.auth.schoolCodePlaceholder}
               value={schoolCode}
               onChangeText={(v) => setSchoolCode(normaliseCode(v))}
               autoCapitalize="characters"
@@ -65,13 +66,14 @@ export default function ParentLogin() {
               maxLength={6}
             />
             <Field
-              label="Mobile number"
-              placeholder="The number registered with school"
+              label={str.auth.mobile}
+              placeholder={str.auth.mobileRegistered}
+              prefix="+91"
               value={phone}
               onChangeText={(v) => setPhone(normalisePhone(v))}
               keyboardType="number-pad"
               textContentType="telephoneNumber"
-              hint="10 digits — +91 and spaces are fine"
+              hint={str.auth.mobileHint}
               maxLength={10}
             />
             <Button
@@ -81,13 +83,13 @@ export default function ParentLogin() {
               disabled={schoolCode.length < 6 || phone.length < 10}
               onPress={requestOtp}
             >
-              Send OTP
+              {str.auth.sendOtp}
             </Button>
 
             {/* FRD §16.2 — scanning beats typing six characters off a printed
                 circular, which is where mistyped codes come from. */}
             <Button variant="secondary" block onPress={() => setScanning(true)}>
-              Scan the school QR code
+              {str.auth.scanQr}
             </Button>
           </View>
         </>
@@ -95,23 +97,25 @@ export default function ParentLogin() {
         <>
           {/* The school's own mark, so a mistyped code is obvious here rather
               than after sign-in. FRD §8.2. */}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space(3), marginBottom: space(3.5) }}>
             <SchoolLogo size={44} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <T size={16} weight="800" numberOfLines={2}>{schoolName}</T>
-              <Muted size={11}>School code {schoolCode}</Muted>
+              <T role="heading" numberOfLines={2}>
+                {schoolName}
+              </T>
+              <Muted>{str.profile.schoolCode(schoolCode)}</Muted>
             </View>
           </View>
 
-          <T size={22} weight="800">Enter the OTP</T>
-          <Muted size={13} style={{ marginTop: 4, marginBottom: 18, lineHeight: 18 }}>
-            Sent to {phone}.
+          <T role="title">{str.auth.otpTitle}</T>
+          <Muted role="body" style={{ marginTop: space(1), marginBottom: space(4.5) }}>
+            {str.auth.otpSentTo(phone)}
           </Muted>
 
-          <View style={{ gap: 14 }}>
+          <View style={{ gap: space(3.5) }}>
             <Alert>{error}</Alert>
             <Field
-              label="6-digit OTP"
+              label={str.auth.otpLabel}
               value={otp}
               onChangeText={(v) => setOtp(normaliseOtp(v))}
               keyboardType="number-pad"
@@ -121,20 +125,19 @@ export default function ParentLogin() {
               inputStyle={{ letterSpacing: 10, fontWeight: "700", textAlign: "center", fontSize: 22 }}
             />
             <Button size="lg" block loading={busy} disabled={otp.length < 6} onPress={verify}>
-              Verify and continue
+              {str.auth.verify}
             </Button>
-            <Pressable
+            <Button
+              variant="ghost"
+              block
               onPress={() => {
                 setStep("identify");
                 setOtp("");
                 setError(null);
               }}
-              style={{ paddingVertical: 8 }}
             >
-              <T size={13} weight="600" color={colors.slate500} style={{ textAlign: "center" }}>
-                Change number or school code
-              </T>
-            </Pressable>
+              {str.auth.changeNumber}
+            </Button>
           </View>
         </>
       )}

@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { api, useAction, useQuery } from "../api";
 import { useSocket } from "../socket";
 import { classOf } from "../format";
 import { colors, elevation, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
-  Alert, Avatar, Badge, Button, Card, Confirm, EmptyState, ErrorState, Field, IconChip, Loading,
-  Modal, Muted, Screen, SkeletonRow, StatTile, T, tick,
+  Alert, Avatar, Badge, Button, Card, Confirm, EmptyState, ErrorState, Field, IconChip, Modal, Muted, Screen, SkeletonRow, StatTile, T, tick,
 } from "../ui";
 import { IconBus, IconCheck } from "../icons";
 import EmergencySheet from "./EmergencySheet";

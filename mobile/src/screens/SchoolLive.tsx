@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { usePolling } from "../api";
 import { useSocket } from "../socket";
 import { ago } from "../format";
-import { colors, radius } from "../theme";
-import { Badge, Card, EmptyState, LiveDot, Loading, Muted, Screen, T } from "../ui";
+import { colors, space } from "../theme";
+import { str } from "../strings";
+import {
+  Badge, Card, EmptyState, ErrorState, IconChip, ListRow, LiveDot, Muted, Screen, SkeletonRow,
+} from "../ui";
 import { IconBus } from "../icons";
 import BusMap from "../BusMap";
 
@@ -35,23 +38,26 @@ export default function SchoolLive() {
 
   useSocket({ "trip:started": reload, "trip:ended": reload }, []);
 
-  if (loading && !data) return <Loading label="Finding your buses…" />;
-  if (error) {
+  if (loading && !data) {
     return (
       <Screen>
-        <Card><EmptyState title="Could not load" hint={error} /></Card>
+        <Card>
+          <View style={{ gap: space(4) }}>
+            <SkeletonRow />
+            <SkeletonRow />
+          </View>
+        </Card>
       </Screen>
     );
   }
+
+  if (error) return <Screen><ErrorState message={error} onRetry={reload} /></Screen>;
 
   if (!data?.length) {
     return (
       <Screen refreshing={loading} onRefresh={reload}>
         <Card>
-          <EmptyState
-            title="No buses are out"
-            hint="Running trips appear here the moment a driver starts one."
-          />
+          <EmptyState title={str.live.noneTitle} hint={str.live.noneHint} />
         </Card>
       </Screen>
     );
@@ -66,36 +72,35 @@ export default function SchoolLive() {
 
         return (
           <Card key={trip._id} padded={false}>
-            <Pressable
+            <ListRow
+              icon={
+                <IconChip bg={colors.brand50}>
+                  <IconBus size={20} color={colors.brand600} />
+                </IconChip>
+              }
+              title={label}
+              subtitle={`${trip.driverId?.name ?? str.live.noDriver} · ${trip.routeId?.name ?? str.live.noRoute}`}
               onPress={() => setOpen(open ? null : trip._id)}
-              style={({ pressed }) => [s.row, pressed && { backgroundColor: colors.slate50 }]}
-            >
-              <View style={s.icon}>
-                <IconBus size={20} color={colors.brand600} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <T size={15} weight="700" numberOfLines={1}>{label}</T>
-                  {!trip.gpsStale && <LiveDot />}
+              right={
+                <View style={{ alignItems: "flex-end", gap: space(1) }}>
+                  <Badge value={trip.gpsStale ? "open" : trip.delayed ? "delayed" : "live"} />
+                  <Muted>{trip.type}</Muted>
                 </View>
-                <Muted size={11} numberOfLines={1}>
-                  {trip.driverId?.name ?? "No driver"} · {trip.routeId?.name ?? "no route"}
-                </Muted>
-                <Muted size={11}>
-                  {/* A three-minute-old fix is not "live". Saying so is the
-                      difference between a parked bus and a dead phone. */}
-                  {trip.gpsStale
-                    ? `GPS ${ago(fix?.at)} — low signal or phone asleep`
-                    : trip.delayed
-                      ? `${trip.delayMinutes} min behind · ${trip.stats?.pickedUp ?? 0} picked up`
-                      : `Reporting · ${trip.stats?.pickedUp ?? 0} picked up`}
-                </Muted>
-              </View>
-              <View style={{ alignItems: "flex-end", gap: 4 }}>
-                <Badge value={trip.gpsStale ? "open" : trip.delayed ? "delayed" : "running"} />
-                <Muted size={11}>{trip.type}</Muted>
-              </View>
-            </Pressable>
+              }
+            />
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space(2), paddingHorizontal: space(4), paddingBottom: space(3) }}>
+              {!trip.gpsStale && <LiveDot />}
+              {/* A three-minute-old fix is not "live". Saying so is the
+                  difference between a parked bus and a dead phone. */}
+              <Muted role="label" weight="400" numberOfLines={1} style={{ flex: 1 }}>
+                {trip.gpsStale
+                  ? str.live.gpsStale(ago(fix?.at))
+                  : trip.delayed
+                    ? str.live.behind(trip.delayMinutes ?? 0, trip.stats?.pickedUp ?? 0)
+                    : str.live.reporting(trip.stats?.pickedUp ?? 0)}
+              </Muted>
+            </View>
 
             {open && (
               <BusMap
@@ -110,15 +115,3 @@ export default function SchoolLive() {
     </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.brand50,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});

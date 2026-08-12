@@ -1,8 +1,11 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { useQuery } from "../api";
 import { date } from "../format";
-import { colors, radius } from "../theme";
-import { Badge, Card, EmptyState, Loading, Muted, Screen, T } from "../ui";
+import { colors, space, tone } from "../theme";
+import { str } from "../strings";
+import {
+  Alert, Badge, Card, EmptyState, ErrorState, IconChip, Muted, Screen, SkeletonRow, T,
+} from "../ui";
 import { IconBus } from "../icons";
 
 type Vehicle = {
@@ -25,25 +28,32 @@ const isSoon = (value?: string | null) =>
 
 /**
  * An owner's vehicles, and the two things that actually cost them money if
- * missed: a service coming due and a document about to expire.
+ * missed: a service coming due and a document about to expire. Those two are the
+ * only thing on the card allowed to be loud.
  */
 export default function OwnerFleet() {
   const { data, loading, error, reload } = useQuery<Vehicle[]>("/owner/vehicles");
 
-  if (loading && !data) return <Loading />;
-  if (error) {
+  if (loading && !data) {
     return (
       <Screen>
-        <Card><EmptyState title="Could not load" hint={error} /></Card>
+        <Card>
+          <View style={{ gap: space(4) }}>
+            <SkeletonRow />
+            <SkeletonRow />
+          </View>
+        </Card>
       </Screen>
     );
   }
+
+  if (error) return <Screen><ErrorState message={error} onRetry={reload} /></Screen>;
 
   if (!data?.length) {
     return (
       <Screen refreshing={loading} onRefresh={reload}>
         <Card>
-          <EmptyState title="No vehicles yet" hint="Vehicles you add to the platform appear here." />
+          <EmptyState title={str.fleet.noneTitle} hint={str.fleet.noneHint} />
         </Card>
       </Screen>
     );
@@ -56,36 +66,35 @@ export default function OwnerFleet() {
         const serviceDue = isSoon(v.nextMaintenanceDueAt);
 
         return (
-          <Card key={v._id}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <View style={s.icon}>
-                <IconBus size={20} color={colors.brand600} />
-              </View>
+          <Card key={v._id} style={expiring.length || serviceDue ? { borderColor: colors.amber400 } : undefined}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space(3) }}>
+              <IconChip bg={colors.brand50} size={44} square>
+                <IconBus size={22} color={colors.brand600} />
+              </IconChip>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <T size={15} weight="700" numberOfLines={1}>
+                <T role="heading" numberOfLines={1}>
                   {v.busNumber ?? v.vehicleNumber}
                 </T>
-                <Muted size={11} numberOfLines={1}>
-                  {v.vehicleNumber}
-                  {v.capacity ? ` · ${v.capacity} seats` : ""}
+                <Muted numberOfLines={1}>
+                  {[v.vehicleNumber, v.capacity ? str.fleet.seats(v.capacity) : null]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </Muted>
               </View>
               <Badge value={v.status} />
             </View>
 
-            <View style={{ gap: 8, marginTop: 12 }}>
-              <Row label="School" value={v.schoolId?.name ?? "Unassigned"} />
-              <Row label="Driver" value={v.driverId?.name ?? "None"} />
+            <View style={{ gap: space(2), marginTop: space(3) }}>
+              <Row label={str.fleet.school} value={v.schoolId?.name ?? str.fleet.unassigned} />
+              <Row label={str.fleet.driver} value={v.driverId?.name ?? str.fleet.noDriver} />
               {!!v.nextMaintenanceDueAt && (
-                <Row label="Service due" value={date(v.nextMaintenanceDueAt)} warn={serviceDue} />
+                <Row label={str.fleet.serviceDue} value={date(v.nextMaintenanceDueAt)} warn={serviceDue} />
               )}
             </View>
 
             {expiring.length > 0 && (
-              <View style={s.warn}>
-                <T size={12} weight="600" color={colors.amber800}>
-                  {expiring.map((d) => d.type).join(", ")} expiring within 30 days
-                </T>
+              <View style={{ marginTop: space(3) }}>
+                <Alert tone="warn">{str.fleet.expiring(expiring.map((d) => d.type).join(", "))}</Alert>
               </View>
             )}
           </Card>
@@ -96,12 +105,13 @@ export default function OwnerFleet() {
 }
 
 const Row = ({ label, value, warn }: { label: string; value: string; warn?: boolean }) => (
-  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-    <Muted size={13}>{label}</Muted>
+  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: space(3) }}>
+    <Muted role="label" weight="400">
+      {label}
+    </Muted>
     <T
-      size={13}
-      weight="600"
-      color={warn ? colors.amber600 : colors.slate800}
+      role="label"
+      color={warn ? colors.amber600 : tone.textPrimary}
       style={{ flex: 1, textAlign: "right" }}
       numberOfLines={1}
     >
@@ -109,21 +119,3 @@ const Row = ({ label, value, warn }: { label: string; value: string; warn?: bool
     </T>
   </View>
 );
-
-const s = StyleSheet.create({
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.brand50,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  warn: {
-    marginTop: 12,
-    backgroundColor: colors.amber50,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-});

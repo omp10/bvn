@@ -3,7 +3,8 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "re
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
-import { colors, radius, VARIANT } from "../theme";
+import { colors, elevation, radius, space, tone, VARIANT } from "../theme";
+import { str } from "../strings";
 import { Shield, T } from "../ui";
 
 /** The mark: the shield, and the little yellow bus inside it. */
@@ -53,11 +54,11 @@ export default function AuthLayout({ children, footer }: { children: ReactNode; 
           >
             <View style={s.brand}>
               <Mark />
-              <T size={26} weight="800" color={colors.white} style={{ marginTop: 12 }}>
+              <T role="title" size={28} color={colors.white} style={{ marginTop: space(3) }}>
                 BalVahini
               </T>
-              <T size={13} color="rgba(255,255,255,0.75)" style={{ marginTop: 2 }}>
-                {VARIANT === "parent" ? "Safe Journeys, Brighter Futures" : "For school staff and fleet owners"}
+              <T role="label" weight="400" color={tone.textOnDarkMuted} style={{ marginTop: 2 }}>
+                {VARIANT === "parent" ? str.auth.parentTagline : str.auth.staffTagline}
               </T>
             </View>
 
@@ -72,16 +73,12 @@ export default function AuthLayout({ children, footer }: { children: ReactNode; 
 }
 
 const s = StyleSheet.create({
-  body: { flexGrow: 1, justifyContent: "center", padding: 20, gap: 8 },
-  brand: { alignItems: "center", marginBottom: 24 },
+  body: { flexGrow: 1, justifyContent: "center", padding: space(5), gap: space(2) },
+  brand: { alignItems: "center", marginBottom: space(6) },
   card: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
-    padding: 22,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
+    padding: space(5.5),
+    ...elevation.floating,
   },
 });

@@ -8,7 +8,7 @@ import { ago, time } from "../format";
 import { colors, elevation, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
-  Alert, Badge, Button, Card, Confirm, EmptyState, ErrorState, IconChip, LiveDot, Loading, Muted,
+  Alert, Badge, Button, Card, Confirm, EmptyState, IconChip, LiveDot, Loading, Muted,
   Screen, SectionHeader, StatTile, T,
 } from "../ui";
 import { IconAlert, IconBus, IconCamera, IconCheck, IconClock, IconPin, IconUsers } from "../icons";

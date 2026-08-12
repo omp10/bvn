@@ -27,7 +27,7 @@ import { useBrand } from "./brand";
 import { useOnline } from "./api";
 import { initials, titleCase } from "./format";
 import { str } from "./strings";
-import { IconCheck } from "./icons";
+import { IconCheck, IconEye, IconEyeOff } from "./icons";
 
 /* ── Motion ────────────────────────────────────────────────────────────
  *
@@ -307,6 +307,8 @@ export function Field({
   label,
   hint,
   error,
+  prefix,
+  reveal,
   style,
   inputStyle,
   ...rest
@@ -315,8 +317,32 @@ export function Field({
   hint?: string;
   /** A server validation message, shown against the field it names. */
   error?: string | null;
+  /** A fixed leading label inside the box — "+91" on every phone number here. */
+  prefix?: string;
+  /** Adds a show/hide eye. Implies a password field. */
+  reveal?: boolean;
   inputStyle?: StyleProp<any>;
 }) {
+  const [shown, setShown] = useState(false);
+  const decorated = Boolean(prefix) || reveal;
+
+  const input = (
+    <TextInput
+      placeholderTextColor={colors.slate400}
+      accessibilityLabel={label}
+      maxFontSizeMultiplier={MAX_FONT_SCALE}
+      secureTextEntry={reveal ? !shown : rest.secureTextEntry}
+      style={[
+        s.input,
+        error ? { borderColor: tone.danger } : null,
+        // The box is drawn by the wrapper when there is anything else in it.
+        decorated ? { borderWidth: 0, flex: 1, paddingHorizontal: 0, backgroundColor: "transparent" } : null,
+        inputStyle,
+      ]}
+      {...rest}
+    />
+  );
+
   return (
     <View style={style}>
       {!!label && (
@@ -324,13 +350,38 @@ export function Field({
           {label}
         </T>
       )}
-      <TextInput
-        placeholderTextColor={colors.slate400}
-        accessibilityLabel={label}
-        maxFontSizeMultiplier={MAX_FONT_SCALE}
-        style={[s.input, error ? { borderColor: tone.danger } : null, inputStyle]}
-        {...rest}
-      />
+
+      {decorated ? (
+        <View style={[s.input, s.fieldBox, error ? { borderColor: tone.danger } : null]}>
+          {!!prefix && (
+            <>
+              <T role="body" weight="600" color={tone.textSecondary}>
+                {prefix}
+              </T>
+              <View style={{ width: 1, alignSelf: "stretch", marginVertical: space(2), backgroundColor: tone.border }} />
+            </>
+          )}
+          {input}
+          {reveal && (
+            <Pressable
+              onPress={() => setShown((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={shown ? str.common.hidePassword : str.common.showPassword}
+              hitSlop={10}
+              style={({ pressed }) => [{ padding: space(1) }, pressed && { opacity: 0.6 }]}
+            >
+              {shown ? (
+                <IconEyeOff size={20} color={tone.textMuted} />
+              ) : (
+                <IconEye size={20} color={tone.textMuted} />
+              )}
+            </Pressable>
+          )}
+        </View>
+      ) : (
+        input
+      )}
+
       {!!error && (
         <T role="caption" color={tone.danger} style={{ marginTop: space(1.5) }}>
           {error}
@@ -1068,6 +1119,7 @@ const s = StyleSheet.create({
     color: tone.textPrimary,
     backgroundColor: colors.white,
   },
+  fieldBox: { flexDirection: "row", alignItems: "center", gap: space(2.5) },
 
   alert: { borderWidth: 1, borderRadius: radius.md, padding: space(3) },
 

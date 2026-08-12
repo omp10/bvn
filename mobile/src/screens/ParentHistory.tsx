@@ -1,12 +1,29 @@
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useState, type ReactElement } from "react";
+import { ScrollView, View } from "react-native";
 import { useQuery } from "../api";
 import { date, time } from "../format";
-import { colors, radius } from "../theme";
-import { Badge, Card, Divider, EmptyState, Loading, Muted, Screen, T } from "../ui";
-import { IconBus, IconClock } from "../icons";
+import { colors, space } from "../theme";
+import { str } from "../strings";
+import {
+  Avatar, Card, Chip, Divider, EmptyState, ErrorState, IconChip, ListRow, Screen, SectionHeader,
+  SkeletonRow,
+} from "../ui";
+import { IconAlert, IconBus, IconSchool } from "../icons";
 
-type Child = { _id: string; name: string };
+type Child = { _id: string; name: string; photoUrl?: string | null };
+
+/**
+ * Which icon, tint and wording an attendance event gets.
+ *
+ * The row says the event in words as well as in colour. The design pairs the
+ * tinted icon with a status pill, but the pill would only repeat the title —
+ * so the title is the sentence and the icon is the colour.
+ */
+const LOOK: Record<string, { bg: string; fg: string; icon: (p: any) => ReactElement; label: string }> = {
+  boarded: { bg: colors.brand50, fg: colors.brand600, icon: IconBus, label: str.history.boarded },
+  dropped: { bg: colors.leaf50, fg: colors.leaf600, icon: IconSchool, label: str.history.dropped },
+  absent: { bg: colors.slate100, fg: colors.slate500, icon: IconAlert, label: str.history.absent },
+};
 
 export default function ParentHistory() {
   const children = useQuery<Child[]>("/parent/children");
@@ -21,81 +38,63 @@ export default function ParentHistory() {
   return (
     <Screen refreshing={history.loading} onRefresh={history.reload}>
       {(children.data?.length ?? 0) > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {children.data!.map((c) => {
-            const on = c._id === id;
-            return (
-              <Pressable
-                key={c._id}
-                onPress={() => setChildId(c._id)}
-                style={[s.chip, on && { backgroundColor: colors.brand600, borderColor: colors.brand600 }]}
-              >
-                <T size={13} weight="600" color={on ? colors.white : colors.slate600}>{c.name}</T>
-              </Pressable>
-            );
-          })}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
+          {children.data!.map((c) => (
+            <Chip
+              key={c._id}
+              label={c.name.split(" ")[0]}
+              selected={c._id === id}
+              onPress={() => setChildId(c._id)}
+              icon={<Avatar name={c.name} photoUrl={c.photoUrl} size={24} onDark={c._id === id} />}
+            />
+          ))}
         </ScrollView>
       )}
 
-      {history.loading && !history.data && <Loading />}
-
-      {history.data?.length === 0 && (
+      {history.loading && !history.data && (
         <Card>
-          <EmptyState
-            title="No records yet"
-            hint="Pickup and drop history from the last 7 days appears here."
-          />
+          <View style={{ gap: space(4) }}>
+            <SkeletonRow />
+            <SkeletonRow />
+          </View>
         </Card>
       )}
 
-      {history.data?.map((day) => (
-        <Card key={day.date} title={date(day.date)} padded={false}>
-          {day.events.map((event, i) => (
-            <View key={event._id}>
-              {i > 0 && <Divider />}
-              <View style={s.row}>
-                <View
-                  style={[
-                    s.icon,
-                    {
-                      backgroundColor:
-                        event.event === "boarded"
-                          ? colors.brand50
-                          : event.event === "dropped"
-                            ? colors.leaf50
-                            : colors.slate100,
-                    },
-                  ]}
-                >
-                  {event.event === "absent" ? (
-                    <IconClock size={16} color={colors.slate500} />
-                  ) : (
-                    <IconBus size={16} color={event.event === "boarded" ? colors.brand600 : colors.leaf600} />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <T size={13} weight="600">{event.event}</T>
-                  <Muted size={11}>{time(event.at)}</Muted>
-                </View>
-                <Badge value={event.event} />
-              </View>
-            </View>
-          ))}
+      {!!history.error && <ErrorState message={history.error} onRetry={history.reload} />}
+
+      {history.data?.length === 0 && (
+        <Card>
+          <EmptyState title={str.history.noneTitle} hint={str.history.noneHint} />
         </Card>
+      )}
+
+      {/* Grouped by day with the date as a run-in header rather than a card
+          title, so a week reads as a week instead of seven identical boxes. */}
+      {history.data?.map((day) => (
+        <View key={day.date} style={{ gap: space(2) }}>
+          <SectionHeader>{date(day.date)}</SectionHeader>
+          <Card padded={false}>
+            {day.events.map((event, i) => {
+              const look = LOOK[event.event] ?? LOOK.absent;
+              const Icon = look.icon;
+              return (
+                <View key={event._id}>
+                  {i > 0 && <Divider />}
+                  <ListRow
+                    icon={
+                      <IconChip bg={look.bg}>
+                        <Icon size={18} color={look.fg} />
+                      </IconChip>
+                    }
+                    title={look.label}
+                    value={time(event.at)}
+                  />
+                </View>
+              );
+            })}
+          </Card>
+        </View>
       ))}
     </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.slate300,
-    backgroundColor: colors.white,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
-  icon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-});

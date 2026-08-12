@@ -4,14 +4,19 @@ import { useQuery } from "../api";
 import { useTrackerStatus, type Fix } from "../tracker";
 import { metresBetween, prettyDistance } from "../geo";
 import { ago } from "../format";
-import { colors, radius } from "../theme";
-import { Card, EmptyState, Loading, Muted, Screen, T } from "../ui";
+import { colors, elevation, radius, space, tone } from "../theme";
+import { str } from "../strings";
+import { Card, EmptyState, ErrorState, IconChip, Loading, Muted, Screen, T } from "../ui";
 import { IconPin } from "../icons";
 import BusMap, { type MapStop } from "../BusMap";
 
 /**
  * The whole route on one screen: every stop, the bus, and the path travelled so
  * far. The Trip tab is for deciding things; this one is for looking.
+ *
+ * The map is the page, not a card sitting on it — so the stop list floats over
+ * the bottom of it rather than pushing it into a strip. Panning still happens
+ * in BusMap's full-screen view, because a drag here scrolls the list.
  */
 export default function DriverLive() {
   const { data, loading, error } = useQuery<any>("/driver/my-bus");
@@ -36,14 +41,13 @@ export default function DriverLive() {
 
   if (loading && !data) return <Loading />;
 
-  if (error || !stops.length) {
+  if (error) return <Screen><ErrorState message={error} /></Screen>;
+
+  if (!stops.length) {
     return (
       <Screen>
         <Card>
-          <EmptyState
-            title="No route to show"
-            hint={error ?? "This bus has no route with stops yet. Ask your school to set one up."}
-          />
+          <EmptyState title={str.map.noRouteTitle} hint={str.map.noRouteHint} />
         </Card>
       </Screen>
     );
@@ -53,67 +57,67 @@ export default function DriverLive() {
 
   return (
     <Screen scroll={false}>
-      <View style={{ flex: 1, padding: 12, gap: 10 }}>
-        {/* The map is the page here, not a card sitting on it. */}
-        <View style={{ flex: 1 }}>
-          <BusMap
-            bus={gps.lastFix}
-            stops={stops}
-            trail={trail}
-            highlightStopId={next?.stop._id ?? null}
-            height="fill"
-          />
-        </View>
+      <View style={{ flex: 1 }}>
+        <BusMap
+          bus={gps.lastFix}
+          stops={stops}
+          trail={trail}
+          highlightStopId={next?.stop._id ?? null}
+          height="fill"
+        />
 
-        <Card padded={false}>
+        <View style={s.sheet}>
+          <View style={s.grabber} />
+
           <View style={s.head}>
-            <View style={s.icon}>
+            <IconChip bg={colors.brand50}>
               <IconPin size={20} color={colors.brand600} />
-            </View>
+            </IconChip>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <T size={14} weight="700" numberOfLines={1}>
+              <T role="body" weight="700" numberOfLines={1}>
                 {next
-                  ? `Nearest stop · ${next.stop.name}`
+                  ? str.map.nearest(next.stop.name)
                   : gps.tracking
-                    ? "Getting a GPS fix…"
-                    : "Trip not started"}
+                    ? str.map.gettingFix
+                    : str.map.notStarted}
               </T>
-              <Muted size={11}>
+              <Muted numberOfLines={1}>
                 {next
-                  ? `${prettyDistance(next.metres)} away · fix ${ago(gps.lastFix!.at)}`
+                  ? str.map.awayFix(prettyDistance(next.metres), ago(gps.lastFix!.at))
                   : gps.tracking
-                    ? "Sharing in the background — the screen can be off"
-                    : `${stops.length} stops on ${route.name}`}
+                    ? str.map.sharingNote
+                    : str.map.routeSummary(stops.length, route.name)}
               </Muted>
             </View>
             {gps.buffered > 0 && (
               <View style={s.queued}>
-                <T size={11} weight="600" color={colors.slate600}>{gps.buffered} queued</T>
+                <T role="caption" weight="700" color={tone.textSecondary}>
+                  {str.driver.queued(gps.buffered)}
+                </T>
               </View>
             )}
           </View>
 
-          <ScrollView style={{ maxHeight: 180 }} contentContainerStyle={{ padding: 10, gap: 2 }}>
+          <ScrollView style={{ maxHeight: 168 }} contentContainerStyle={{ padding: space(2.5), gap: space(0.5) }}>
             {stops.map((stop, i) => {
               const away = gps.lastFix ? metresBetween(gps.lastFix, stop) : null;
               const isNext = next?.stop === stop;
               return (
-                <View
-                  key={stop._id ?? i}
-                  style={[s.stop, isNext && { backgroundColor: colors.brand50 }]}
-                >
-                  <View style={[s.stopNumber, isNext && { backgroundColor: colors.brand600 }]}>
-                    <T size={11} weight="700" color={isNext ? colors.white : colors.slate600}>{i + 1}</T>
-                  </View>
-                  <T size={13} weight="500" style={{ flex: 1 }} numberOfLines={1}>{stop.name}</T>
-                  <Muted size={11}>
-                    {away === null ? ((stop as any).pickupTime ?? "") : prettyDistance(away)}
-                  </Muted>
+                <View key={stop._id ?? i} style={[s.stop, isNext && { backgroundColor: colors.brand50 }]}>
+                  <IconChip bg={isNext ? colors.brand600 : colors.slate100} size={26}>
+                    <T role="caption" weight="700" color={isNext ? colors.white : tone.textSecondary}>
+                      {i + 1}
+                    </T>
+                  </IconChip>
+                  <T role="label" weight={isNext ? "700" : "500"} style={{ flex: 1 }} numberOfLines={1}>
+                    {stop.name}
+                  </T>
+                  <Muted>{away === null ? ((stop as any).pickupTime ?? "") : prettyDistance(away)}</Muted>
                 </View>
               );
             })}
           </ScrollView>
-        </Card>
+        </View>
       </View>
     </Screen>
   );
@@ -126,23 +130,40 @@ function nearestStop(fix: Fix, stops: MapStop[]) {
 }
 
 const s = StyleSheet.create({
-  head: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.brand50,
-    alignItems: "center",
-    justifyContent: "center",
+  sheet: {
+    position: "absolute",
+    left: space(2.5),
+    right: space(2.5),
+    bottom: space(2.5),
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: tone.border,
+    overflow: "hidden",
+    ...elevation.floating,
   },
-  queued: { backgroundColor: colors.slate100, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
-  stop: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 7, borderRadius: radius.sm },
-  stopNumber: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  grabber: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: tone.border,
+    marginTop: space(2),
+  },
+  head: { flexDirection: "row", alignItems: "center", gap: space(3), padding: space(3) },
+  queued: {
     backgroundColor: colors.slate100,
+    paddingHorizontal: space(2.5),
+    paddingVertical: space(1),
+    borderRadius: radius.pill,
+  },
+  stop: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: space(2.5),
+    paddingHorizontal: space(2),
+    paddingVertical: space(1.5),
+    borderRadius: radius.sm,
+    minHeight: 44,
   },
 });

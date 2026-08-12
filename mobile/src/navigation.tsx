@@ -1,6 +1,4 @@
-import {
-  createContext, useCallback, useContext, useMemo, useRef, type ReactElement, type ReactNode,
-} from "react";
+import { useCallback, useRef, type ReactElement } from "react";
 import { Pressable, View } from "react-native";
 import {
   NavigationContainer,
@@ -10,10 +8,9 @@ import {
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { usePolling } from "./api";
 import { useAuth } from "./auth";
 import { useBrand } from "./brand";
-import { useSocket } from "./socket";
+import { UnreadProvider, useUnread } from "./unread";
 import { useNotificationTaps } from "./push";
 import { colors, space, tone, VARIANT } from "./theme";
 import { str } from "./strings";
@@ -113,25 +110,6 @@ const TABS: Record<string, TabDef[]> = {
 const STACK_SCREENS: Record<string, { name: string; title: string; component: React.ComponentType<any> }[]> = {
   driver: [{ name: "TripHistory", title: str.nav.history, component: DriverHistory }],
 };
-
-/* ── Unread alerts ─────────────────────────────────────────────────────
- *
- * One poll for the whole app. The bell renders in every tab's header, and a
- * `usePolling` inside it would mean one request per mounted tab — four, for a
- * driver, all asking the same question.
- */
-
-const UnreadContext = createContext<{ unread: number; refresh: () => void }>({ unread: 0, refresh: () => {} });
-
-function UnreadProvider({ children }: { children: ReactNode }) {
-  const { data, reload } = usePolling<{ unread: number }>("/notifications?limit=1", 60_000);
-  useSocket({ notification: () => reload() }, []);
-
-  const value = useMemo(() => ({ unread: data?.unread ?? 0, refresh: reload }), [data?.unread, reload]);
-  return <UnreadContext.Provider value={value}>{children}</UnreadContext.Provider>;
-}
-
-export const useUnread = () => useContext(UnreadContext);
 
 /** The header bell. Count as well as colour — a red dot alone says nothing. */
 function AlertsBell() {

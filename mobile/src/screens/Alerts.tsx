@@ -1,14 +1,21 @@
 import { StyleSheet, View } from "react-native";
 import { api, useAction, usePolling } from "../api";
 import { useSocket } from "../socket";
-import { dateTime } from "../format";
-import { colors } from "../theme";
-import { Button, Card, EmptyState, Loading, Muted, Screen, T } from "../ui";
+import { ago } from "../format";
+import { useUnread } from "../unread";
+import { colors, radius, space, tone } from "../theme";
+import { str } from "../strings";
+import {
+  Button, Card, EmptyState, IconChip, LiveDot, Muted, Screen, SkeletonRow, T,
+} from "../ui";
 import { IconAlert, IconBell } from "../icons";
 
 /**
  * Notifications, for both apps. Everyone signed in reads their own from the same
  * endpoint, so there is nothing role-specific to branch on here.
+ *
+ * Pushed from the header bell rather than owning a tab: this is where a tapped
+ * notification lands, not somewhere people navigate to on purpose.
  */
 export default function Alerts() {
   /* Polled, not just socket-driven: a parent is never in the school room, so
@@ -18,56 +25,89 @@ export default function Alerts() {
     60_000
   );
   const { run } = useAction();
+  // The bell in every header counts the same unread total, so clearing them
+  // here has to clear it there in the same breath.
+  const unread = useUnread();
 
   useSocket({ notification: () => reload() }, []);
+
+  const markAllRead = () =>
+    void run(() => api("/notifications/read-all", { body: {} }), () => {
+      reload();
+      unread.refresh();
+    });
 
   return (
     <Screen refreshing={loading} onRefresh={reload}>
       {(data?.unread ?? 0) > 0 && (
-        <Button
-          variant="secondary"
-          block
-          onPress={() => void run(() => api("/notifications/read-all", { body: {} }), reload)}
-        >
-          Mark all {data!.unread} as read
+        <Button variant="secondary" block onPress={markAllRead}>
+          {str.alerts.markAllRead(data!.unread)}
         </Button>
       )}
 
-      {loading && !data && <Loading />}
+      {loading && !data && (
+        <Card>
+          <View style={{ gap: space(4) }}>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </View>
+        </Card>
+      )}
 
       {data?.items.length === 0 && (
         <Card>
-          <EmptyState title="No notifications yet" hint="Trip and safety alerts appear here." />
+          <EmptyState title={str.alerts.noneTitle} hint={str.alerts.noneHint} />
         </Card>
       )}
 
       {data?.items.map((n) => {
         const urgent = n.type === "emergency";
+        const unreadRow = !n.readAt;
+
         return (
-          <Card
+          <View
             key={n._id}
-            style={
-              n.readAt
-                ? undefined
-                : { borderColor: urgent ? colors.red500 : colors.brand200, backgroundColor: urgent ? colors.red50 : colors.brand50 }
-            }
+            style={[
+              s.item,
+              urgent && { backgroundColor: colors.red50, borderColor: colors.red500 },
+              !urgent && unreadRow && { backgroundColor: colors.brand50, borderColor: colors.brand200 },
+              // An emergency reads differently at a glance, not just in colour:
+              // the red edge is the thing you see before you read anything.
+              urgent && s.urgentEdge,
+            ]}
           >
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <View style={[s.icon, urgent && { borderColor: colors.red500 }]}>
-                {urgent ? (
-                  <IconAlert size={16} color={colors.red600} />
-                ) : (
-                  <IconBell size={16} color={colors.brand600} />
+            <IconChip bg={urgent ? colors.white : unreadRow ? colors.white : colors.slate100}>
+              {urgent ? (
+                <IconAlert size={18} color={tone.danger} />
+              ) : (
+                <IconBell size={18} color={unreadRow ? colors.brand600 : tone.textMuted} />
+              )}
+            </IconChip>
+
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: space(2) }}>
+                {urgent && (
+                  <T role="caption" weight="800" color={tone.danger}>
+                    {str.alerts.emergency.toUpperCase()}
+                  </T>
                 )}
+                <T role="body" weight="700" style={{ flex: 1 }}>
+                  {n.title}
+                </T>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <T size={14} weight="700">{n.title}</T>
-                <T size={13} color={colors.slate600} style={{ marginTop: 2, lineHeight: 18 }}>{n.body}</T>
-                <Muted size={11} style={{ marginTop: 4 }}>{dateTime(n.createdAt)}</Muted>
-              </View>
-              {!n.readAt && <View style={s.unread} />}
+              <T role="label" weight="400" color={tone.textSecondary}>
+                {n.body}
+              </T>
+              <Muted style={{ marginTop: space(1) }}>{ago(n.createdAt)}</Muted>
             </View>
-          </Card>
+
+            {unreadRow && (
+              <View accessibilityLabel={str.alerts.unread}>
+                <LiveDot color={urgent ? colors.red500 : colors.brand500} />
+              </View>
+            )}
+          </View>
         );
       })}
     </Screen>
@@ -75,15 +115,14 @@ export default function Alerts() {
 }
 
 const s = StyleSheet.create({
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  item: {
+    flexDirection: "row",
+    gap: space(3),
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.slate200,
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: tone.border,
+    borderRadius: radius.card,
+    padding: space(3.5),
   },
-  unread: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand500, marginTop: 5 },
+  urgentEdge: { borderLeftWidth: 5, borderLeftColor: tone.danger },
 });

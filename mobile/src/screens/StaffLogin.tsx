@@ -3,6 +3,8 @@ import { View } from "react-native";
 import { api, useAction } from "../api";
 import { useAuth, type Session } from "../auth";
 import { normalisePhone } from "../input";
+import { space } from "../theme";
+import { str } from "../strings";
 import { Alert, Button, Field, Muted, T } from "../ui";
 import AuthLayout from "./AuthLayout";
 
@@ -25,17 +27,17 @@ export default function StaffLogin() {
 
   return (
     <AuthLayout>
-      <T size={22} weight="800">Sign in</T>
-      <Muted size={13} style={{ marginTop: 4, marginBottom: 18, lineHeight: 18 }}>
-        For drivers, attendants, school staff and fleet owners. Parents sign in on
-        the BalVahini Parent app.
+      <T role="title">{str.auth.staffTitle}</T>
+      <Muted role="body" style={{ marginTop: space(1), marginBottom: space(4.5) }}>
+        {str.auth.staffHelp}
       </Muted>
 
-      <View style={{ gap: 14 }}>
+      <View style={{ gap: space(3.5) }}>
         <Alert>{error}</Alert>
         <Field
-          label="Mobile number"
-          placeholder="10 digits"
+          label={str.auth.mobile}
+          placeholder={str.auth.mobileHint}
+          prefix="+91"
           value={phone}
           onChangeText={(v) => setPhone(normalisePhone(v))}
           keyboardType="number-pad"
@@ -43,10 +45,10 @@ export default function StaffLogin() {
           maxLength={10}
         />
         <Field
-          label="Password"
+          label={str.auth.password}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          reveal
           textContentType="password"
           onSubmitEditing={submit}
           returnKeyType="go"
@@ -58,10 +60,10 @@ export default function StaffLogin() {
           disabled={phone.length < 10 || !password}
           onPress={submit}
         >
-          Sign in
+          {str.auth.signIn}
         </Button>
-        <Muted style={{ textAlign: "center", lineHeight: 17 }}>
-          Forgotten your password? Ask the school office to reset it.
+        <Muted role="label" weight="400" style={{ textAlign: "center" }}>
+          {str.auth.forgotten}
         </Muted>
       </View>
     </AuthLayout>

@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { api, useAction } from "../api";
-import { titleCase } from "../format";
-import { colors, radius } from "../theme";
-import { Alert, Button, Field, Modal, Muted, T } from "../ui";
-import { IconAlert } from "../icons";
+import { colors, radius, space, tone } from "../theme";
+import { str } from "../strings";
+import { Alert, Button, Field, IconChip, Modal, Muted, T } from "../ui";
+import { IconAlert, IconBus, IconCheck, IconPhone, IconShield } from "../icons";
 
-const TYPES = ["breakdown", "medical", "accident", "other"] as const;
+const TYPES = [
+  { key: "breakdown", label: str.emergency.breakdown, icon: IconBus },
+  { key: "medical", label: str.emergency.medical, icon: IconPhone },
+  { key: "accident", label: str.emergency.accident, icon: IconAlert },
+  { key: "other", label: str.emergency.other, icon: IconShield },
+] as const;
 
 /**
  * The panic button, for drivers and attendants alike.
@@ -14,6 +19,10 @@ const TYPES = ["breakdown", "medical", "accident", "other"] as const;
  * A fresh idempotency key per press: a retried request collapses onto the alert
  * already raised, but a genuine second breakdown on the same trip still gets
  * through. Keying on trip state instead would silently swallow the second one.
+ *
+ * Four large cards rather than four small pills. This gets pressed by someone
+ * whose hands are shaking, and the type is the only thing they have to get
+ * right — the note is optional and the alert goes out either way.
  */
 export default function EmergencySheet({
   open,
@@ -53,47 +62,60 @@ export default function EmergencySheet({
     <Modal
       open={open}
       onClose={close}
-      title="Raise an emergency"
+      title={str.emergency.title}
       footer={
         sent ? (
-          <Button onPress={close}>Close</Button>
+          <Button onPress={close}>{str.common.close}</Button>
         ) : (
           <>
-            <Button variant="secondary" onPress={close}>Cancel</Button>
-            <Button variant="danger" loading={busy} onPress={raise}>Send alert</Button>
+            <Button variant="secondary" onPress={close}>
+              {str.common.cancel}
+            </Button>
+            <Button variant="danger" loading={busy} haptic="heavy" onPress={raise}>
+              {str.emergency.send}
+            </Button>
           </>
         )
       }
     >
       {sent ? (
-        <View style={{ alignItems: "center", gap: 8, paddingVertical: 16 }}>
-          <View style={s.sentIcon}>
-            <IconAlert size={22} color={colors.leaf600} />
-          </View>
-          <T size={15} weight="700">Alert sent</T>
-          <Muted style={{ textAlign: "center", lineHeight: 18 }}>
-            The school office and every parent on this bus have been notified.
+        <View style={{ alignItems: "center", gap: space(2), paddingVertical: space(4) }}>
+          <IconChip bg={colors.leaf50} size={56}>
+            <IconCheck size={26} color={tone.success} />
+          </IconChip>
+          <T role="heading">{str.emergency.sentTitle}</T>
+          <Muted role="body" style={{ textAlign: "center" }}>
+            {str.emergency.sentBody}
           </Muted>
         </View>
       ) : (
-        <View style={{ gap: 14 }}>
+        <View style={{ gap: space(3.5) }}>
           <Alert>{error}</Alert>
 
           <View>
-            <T size={13} weight="600" color={colors.slate600} style={{ marginBottom: 8 }}>
-              What has happened?
+            <T role="label" color={tone.textSecondary} style={{ marginBottom: space(2) }}>
+              {str.emergency.what}
             </T>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {TYPES.map((t) => {
-                const on = t === type;
+            <View style={s.grid}>
+              {TYPES.map((option) => {
+                const on = option.key === type;
+                const Icon = option.icon;
                 return (
                   <Pressable
-                    key={t}
-                    onPress={() => setType(t)}
-                    style={[s.type, on && { borderColor: colors.red600, backgroundColor: colors.red50 }]}
+                    key={option.key}
+                    onPress={() => setType(option.key)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={option.label}
+                    style={({ pressed }) => [
+                      s.type,
+                      on && { borderColor: tone.danger, backgroundColor: tone.dangerTint },
+                      pressed && { opacity: 0.8 },
+                    ]}
                   >
-                    <T size={13} weight={on ? "700" : "500"} color={on ? colors.red600 : colors.slate600}>
-                      {titleCase(t)}
+                    <Icon size={24} color={on ? tone.danger : tone.textMuted} />
+                    <T role="label" weight={on ? "700" : "500"} color={on ? tone.danger : tone.textSecondary}>
+                      {option.label}
                     </T>
                   </Pressable>
                 );
@@ -102,16 +124,16 @@ export default function EmergencySheet({
           </View>
 
           <Field
-            label="Anything to add?"
+            label={str.emergency.note}
             value={note}
             onChangeText={setNote}
-            placeholder="Front tyre punctured near Anand Nagar."
+            placeholder={str.emergency.notePlaceholder}
             multiline
-            inputStyle={{ height: 84, paddingTop: 12, textAlignVertical: "top" }}
+            inputStyle={{ height: 84, paddingTop: space(3), textAlignVertical: "top" }}
           />
 
-          <Muted style={{ lineHeight: 17 }}>
-            This immediately alerts the school office, the platform, and the parents of every child on this bus.
+          <Muted role="label" weight="400">
+            {str.emergency.warning}
           </Muted>
         </View>
       )}
@@ -120,20 +142,18 @@ export default function EmergencySheet({
 }
 
 const s = StyleSheet.create({
-  sentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.leaf50,
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: space(2.5) },
+  type: {
+    // Two across, with the gap taken off so the pair fits the sheet's width.
+    width: "48%",
     alignItems: "center",
     justifyContent: "center",
-  },
-  type: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.slate200,
+    gap: space(2),
+    minHeight: 88,
+    paddingVertical: space(3),
+    borderRadius: radius.card,
+    borderWidth: 2,
+    borderColor: tone.border,
     backgroundColor: colors.white,
   },
 });
