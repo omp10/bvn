@@ -2,31 +2,44 @@ import { useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api, useAction, usePolling, useQuery } from "../api";
 import { useSocket, useTripRoom } from "../socket";
-import { useAuth } from "../auth";
 import { ago, classOf, time } from "../format";
 import { metresBetween, prettyDistance } from "../geo";
-import { colors, radius, shadow } from "../theme";
+import { colors, elevation, radius, space, tone } from "../theme";
+import { str } from "../strings";
 import {
-  Alert, Avatar, Button, Card, EmptyState, Field, LiveDot, Loading, Modal, Muted, Screen, SchoolLogo,
-  Shield, T,
+  Alert, Avatar, Button, Card, Chip, EmptyState, Enter, ErrorState, Field, IconChip, LiveDot, Modal,
+  Muted, Screen, SectionHeader, Shield, Skeleton, T, Timeline,
 } from "../ui";
-import { IconBus, IconPhone, IconPin } from "../icons";
+import { IconAlert, IconCheck, IconClock, IconPhone, IconPin, IconSchool } from "../icons";
 import BusMap from "../BusMap";
 
-type Stop = { _id: string; name: string; sequence: number; lat: number; lng: number };
+type Stop = { _id: string; name: string; sequence: number; lat: number; lng: number; pickupTime?: string; dropTime?: string };
 type Child = {
   _id: string;
   name: string;
   class?: string;
   section?: string;
+  photoUrl?: string | null;
   pickupStopId?: string;
   dropStopId?: string;
   vehicleId?: { busNumber: string; vehicleNumber: string } | null;
   routeId?: { name: string; stops?: Stop[] } | null;
 };
 
+/**
+ * The most important screen in either app.
+ *
+ * Before, during and after a trip are three different questions, so they are
+ * three different compositions rather than one scroll with everything on it and
+ * the parts that do not apply left blank. Before: when will it come. During: one
+ * number, and the map. After: what happened, and when.
+ *
+ * The bus's registration, the route name and the attendant's name are all real
+ * information a parent occasionally wants and never wants first — they moved
+ * into a sheet behind the hero, which is what stopped this screen being a flat
+ * stack of equally loud cards.
+ */
 export default function ParentHome() {
-  const { school } = useAuth();
   const children = useQuery<Child[]>("/parent/children");
   const [selectedId, setSelected] = useState<string | null>(null);
   const childId = selectedId ?? children.data?.[0]?._id ?? null;
@@ -34,7 +47,7 @@ export default function ParentHome() {
   // The socket delivers a position the instant the bus reports it; the slow poll
   // is only a safety net for a dropped connection.
   const live = usePolling<any>(childId ? `/parent/children/${childId}/live` : null, 30_000);
-  const [changing, setChanging] = useState(false);
+  const [details, setDetails] = useState(false);
 
   const tripId = live.data?.trip?.id ?? null;
   useTripRoom(tripId);
@@ -51,25 +64,14 @@ export default function ParentHome() {
     [live.data]
   );
 
-  if (children.loading && !children.data) return <Loading label="Loading your children…" />;
-
-  if (children.error) {
-    return (
-      <Screen>
-        <Card><EmptyState title="Could not load" hint={children.error} /></Card>
-        <Button variant="secondary" block onPress={children.reload}>Try again</Button>
-      </Screen>
-    );
-  }
+  if (children.loading && !children.data) return <HomeSkeleton />;
+  if (children.error) return <Screen><ErrorState message={children.error} onRetry={children.reload} /></Screen>;
 
   if (!children.data?.length) {
     return (
       <Screen>
         <Card>
-          <EmptyState
-            title="No children linked yet"
-            hint="Ask the school office to add your mobile number to your child's record."
-          />
+          <EmptyState title={str.parent.noChildrenTitle} hint={str.parent.noChildrenHint} />
         </Card>
       </Screen>
     );
@@ -78,225 +80,441 @@ export default function ParentHome() {
   const child = children.data.find((c) => c._id === childId) ?? children.data[0];
   const status = live.data?.status;
   const running = status === "running";
+  const childStatus: string | null = live.data?.childStatus ?? null;
 
-  // The live endpoint only names the stop while a trip runs. Before the bus sets
-  // off, fall back to the child's own assignment — "not set" when a stop exists
-  // is worse than saying nothing.
-  const stopNamed = (id?: string) =>
-    child.routeId?.stops?.find((s) => String(s._id) === String(id))?.name ?? "Not set";
-
-  const pickupStop = live.data?.myStop?.name ?? stopNamed(child.pickupStopId);
-  const dropStop = stopNamed(child.dropStopId);
+  const stopById = (id?: string) => child.routeId?.stops?.find((s) => String(s._id) === String(id)) ?? null;
+  /* The live endpoint only names the stop while a trip runs. Before the bus sets
+     off, fall back to the child's own assignment — saying "not set" when a stop
+     exists is worse than saying nothing. */
+  const myStop: Stop | null = live.data?.myStop ?? stopById(child.pickupStopId);
+  const scheduled = myStop?.pickupTime ?? myStop?.dropTime ?? null;
 
   /* FRD §19.4 — how far the bus still is, not just how long. Minutes are an
      estimate the parent has to trust; metres are something they can see out of
      the window. */
-  const myStop = live.data?.myStop;
   const fix = live.data?.position;
   const metresAway =
     running && myStop?.lat != null && fix?.lat != null
       ? metresBetween({ lat: fix.lat, lng: fix.lng }, { lat: myStop.lat, lng: myStop.lng })
       : null;
 
+  const onBoard = childStatus === "boarded";
+  const settled = childStatus === "dropped" || childStatus === "absent";
+
   return (
     <Screen refreshing={live.loading} onRefresh={() => { children.reload(); live.reload(); }}>
-      {/* The school's own identity on the dashboard — FRD §17.3. */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <SchoolLogo size={36} />
-        <T size={14} weight="700" style={{ flex: 1 }} numberOfLines={1}>
-          {school?.name ?? "BalVahini"}
-        </T>
-      </View>
-
       {children.data.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {children.data.map((c) => {
-            const on = c._id === child._id;
-            return (
-              <Pressable
-                key={c._id}
-                onPress={() => setSelected(c._id)}
-                style={[s.chip, on && { backgroundColor: colors.brand600, borderColor: colors.brand600 }]}
-              >
-                <Avatar name={c.name} size={22} onDark={on} />
-                <T size={13} weight="600" color={on ? colors.white : colors.slate600}>
-                  {c.name.split(" ")[0]}
-                </T>
-              </Pressable>
-            );
-          })}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(2) }}>
+          {children.data.map((c) => (
+            <Chip
+              key={c._id}
+              label={c.name.split(" ")[0]}
+              selected={c._id === child._id}
+              onPress={() => setSelected(c._id)}
+              icon={<Avatar name={c.name} photoUrl={c.photoUrl} size={24} onDark={c._id === child._id} />}
+            />
+          ))}
         </ScrollView>
       )}
 
-      {/* The one card a parent actually opens the app for. */}
-      <Shield style={s.hero}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-          <Avatar name={child.name} size={48} onDark />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <T size={18} weight="800" color={colors.white} numberOfLines={1}>{child.name}</T>
-            <T size={13} color="rgba(255,255,255,0.72)" numberOfLines={1}>
-              {classOf(child)} · {child.vehicleId?.busNumber ?? "No bus assigned"}
-            </T>
-          </View>
-          {running && (
-            <View style={[s.livePill, live.data?.delayed && { backgroundColor: "rgba(0,0,0,0.28)" }]}>
-              <LiveDot color={live.data?.delayed ? colors.sun400 : colors.white} />
-              <T size={11} weight="700" color={colors.white}>
-                {live.data?.delayed ? "Delayed" : "Live"}
-              </T>
-            </View>
-          )}
-        </View>
-
-        <View style={{ marginTop: 20 }}>
-          {running ? (
-            <>
-              <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-                <T size={44} weight="800" color={colors.white}>{live.data.etaMinutes ?? "—"}</T>
-                <T size={14} color="rgba(255,255,255,0.8)" style={{ marginBottom: 8 }}>
-                  min to your stop
-                </T>
-              </View>
-              <T size={13} color="rgba(255,255,255,0.72)" style={{ marginTop: 2 }}>
-                {live.data.nextStop ? `Next stop: ${live.data.nextStop.name}` : "On the way"}
-                {" · "}
-                {live.data.stopsRemaining} stop{live.data.stopsRemaining === 1 ? "" : "s"} left
-                {metresAway != null ? ` · ${prettyDistance(metresAway)} away` : ""}
-              </T>
-              {live.data?.delayed && (
-                // FRD §19.6 — a late bus is the thing a waiting parent most
-                // needs told, and it is not visible from an ETA alone.
-                <View style={s.staleNote}>
-                  <T size={12} color={colors.white}>
-                    Running about {live.data.delayMinutes} minutes behind the timetable.
-                  </T>
-                </View>
-              )}
-              {live.data.gpsStale && (
-                // Silence is not the same as "the bus is here" — say when the
-                // fix is old rather than letting a stale dot imply it is fresh.
-                <View style={s.staleNote}>
-                  <T size={12} color={colors.white}>
-                    GPS last updated {ago(live.data.position?.at)} — the bus may be in a low-signal area.
-                  </T>
-                </View>
-              )}
-            </>
-          ) : (
-            <T size={14} color="rgba(255,255,255,0.85)" style={{ lineHeight: 20 }}>
-              {status === "no_bus_assigned"
-                ? "No bus is assigned yet. Please contact the school office."
-                : "The bus has not started its trip yet."}
-            </T>
-          )}
-        </View>
-
-        {!!live.data?.childStatus && (
-          <View style={s.heroFoot}>
-            <IconBus size={16} color={colors.white} />
-            <T size={13} color={colors.white}>
-              {child.name.split(" ")[0]} is marked{" "}
-              <T size={13} weight="700" color={colors.white}>{live.data.childStatus}</T>
-            </T>
-          </View>
+      <Enter key={`${child._id}-${childStatus ?? status}`} style={{ gap: space(3) }}>
+        {status === "no_bus_assigned" ? (
+          <Card>
+            <EmptyState title={str.parent.noBusTitle} hint={str.parent.noBusHint} />
+          </Card>
+        ) : childStatus ? (
+          <SettledHero child={child} live={live.data} stop={myStop} />
+        ) : running ? (
+          <RunningHero child={child} live={live.data} metresAway={metresAway} onDetails={() => setDetails(true)} />
+        ) : (
+          <WaitingHero child={child} scheduled={scheduled} onDetails={() => setDetails(true)} />
         )}
-      </Shield>
 
-      {running && live.data?.position?.lat != null && (
-        <Card title="On the map" padded={false}>
-          <BusMap
-            bus={{ lat: live.data.position.lat, lng: live.data.position.lng }}
-            stops={child.routeId?.stops ?? []}
-            highlightStopId={child.pickupStopId}
-            height={280}
-          />
-        </Card>
-      )}
-
-      <Card title="Bus details">
-        <View style={{ gap: 10 }}>
-          <Row label="Bus" value={child.vehicleId?.busNumber ?? "—"} />
-          <Row label="Vehicle" value={child.vehicleId?.vehicleNumber ?? "—"} />
-          <Row label="Route" value={child.routeId?.name ?? "—"} />
-          <Row label="Driver" value={live.data?.driver?.name ?? "—"} />
-          {/* FRD §17.4 names the attendant too — the person who actually marks
-              the child on and off the bus. */}
-          <Row label="Bus attendant" value={live.data?.vehicle?.attendantId?.name ?? "Not assigned"} />
-          <Row label="Pickup stop" value={pickupStop} />
-          <Row label="Drop stop" value={dropStop} />
-        </View>
-        <Button variant="secondary" size="sm" block style={{ marginTop: 14 }} onPress={() => setChanging(true)}>
-          Request a route change
-        </Button>
-      </Card>
-
-      <Card title="Emergency contacts">
-        <Contacts driver={live.data?.driver} />
-      </Card>
-
-      {live.data?.trip?.timeline?.length > 0 && (
-        <Card title="Today's journey">
-          <View style={{ gap: 12 }}>
-            {live.data.trip.timeline.map((entry: any, i: number) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View style={s.dot} />
-                <T size={13} weight="500" style={{ flex: 1 }}>
-                  {entry.event.replace(/_/g, " ")}
-                  {entry.stopName ? ` · ${entry.stopName}` : ""}
+        {/* Before the bus sets off there is no map worth drawing, so the stop
+            itself is the content: where it is, and when it is due. */}
+        {!running && !settled && (
+          <Card>
+            <SectionHeader>{str.parent.yourStop}</SectionHeader>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space(3), marginTop: space(2.5) }}>
+              <IconChip bg={colors.brand50}>
+                <IconPin size={18} color={colors.brand600} />
+              </IconChip>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <T role="body" weight="700" numberOfLines={2}>
+                  {myStop?.name ?? str.common.notSet}
                 </T>
-                <Muted size={11}>{time(entry.at)}</Muted>
+                {!!scheduled && (
+                  <Muted role="label" weight="400">
+                    {str.parent.scheduled} {scheduled}
+                  </Muted>
+                )}
               </View>
-            ))}
-          </View>
-        </Card>
-      )}
+            </View>
+          </Card>
+        )}
 
-      <RouteChangeModal childId={child._id} open={changing} onClose={() => setChanging(false)} />
+        {/* The map earns the space only while there is something moving on it.
+            It is a preview: a drag inside a scrolling screen scrolls the screen,
+            so panning happens in BusMap's own full-screen view. */}
+        {running && fix?.lat != null && (
+          <Card title={str.parent.liveLocation} subtitle={str.common.lastUpdated(ago(fix.at))} padded={false}>
+            <BusMap
+              bus={{ lat: fix.lat, lng: fix.lng }}
+              stops={child.routeId?.stops ?? []}
+              highlightStopId={myStop?._id}
+              height={onBoard ? 200 : 300}
+            />
+          </Card>
+        )}
+
+        {live.data?.trip?.timeline?.length > 0 && (
+          <Card title={str.parent.journey}>
+            <Timeline
+              items={[
+                ...live.data.trip.timeline.map((entry: any) => ({
+                  label: [entry.event.replace(/_/g, " "), entry.stopName].filter(Boolean).join(" · "),
+                  at: time(entry.at),
+                  state: "done" as const,
+                })),
+                ...(running
+                  ? [{ label: str.parent.onTheWay, at: null, state: "current" as const }]
+                  : []),
+              ]}
+            />
+          </Card>
+        )}
+
+        <QuickActions driver={live.data?.driver} />
+      </Enter>
+
+      <BusDetailsSheet
+        open={details}
+        onClose={() => setDetails(false)}
+        child={child}
+        live={live.data}
+        pickup={stopById(child.pickupStopId)?.name}
+        drop={stopById(child.dropStopId)?.name}
+      />
     </Screen>
   );
 }
 
-const Row = ({ label, value }: { label: string; value: string }) => (
-  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-    <Muted size={13}>{label}</Muted>
-    <T size={13} weight="600" style={{ flex: 1, textAlign: "right" }} numberOfLines={1}>{value}</T>
-  </View>
+/* ── Heroes ────────────────────────────────────────────────────────────
+ *
+ * One per state. They share a shape — avatar, name, class and bus, then the one
+ * thing that matters — so switching between them reads as the same card
+ * changing rather than three unrelated screens.
+ */
+
+const HeroHead = ({
+  child,
+  right,
+  onPress,
+}: {
+  child: Child;
+  right?: React.ReactNode;
+  onPress?: () => void;
+}) => (
+  <Pressable
+    onPress={onPress}
+    disabled={!onPress}
+    accessibilityRole={onPress ? "button" : undefined}
+    accessibilityLabel={onPress ? str.parent.busDetails : undefined}
+    style={({ pressed }) => [
+      { flexDirection: "row", alignItems: "flex-start", gap: space(3) },
+      pressed && onPress && { opacity: 0.8 },
+    ]}
+  >
+    <Avatar name={child.name} photoUrl={child.photoUrl} size={48} onDark />
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <T role="heading" size={19} color={colors.white} numberOfLines={1}>
+        {child.name}
+      </T>
+      <T role="label" weight="400" color={tone.textOnDarkMuted} numberOfLines={1}>
+        {classOf(child)} · {child.vehicleId?.busNumber ?? str.parent.notAssigned}
+        {onPress ? "  ›" : ""}
+      </T>
+    </View>
+    {right}
+  </Pressable>
 );
 
-function Contacts({ driver }: { driver?: { name: string; phone: string } | null }) {
-  const { data } = useQuery<any>("/parent/emergency-contacts");
+/** Before the trip: the only useful number is when it is due. */
+function WaitingHero({
+  child,
+  scheduled,
+  onDetails,
+}: {
+  child: Child;
+  scheduled: string | null;
+  onDetails: () => void;
+}) {
+  return (
+    <Shield style={s.hero}>
+      <HeroHead child={child} onPress={onDetails} />
+      <View style={s.waitBox}>
+        <IconClock size={20} color={colors.white} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <T role="body" weight="700" color={colors.white}>
+            {str.parent.notStarted}
+          </T>
+          <T role="label" weight="400" color={tone.textOnDarkMuted}>
+            {scheduled ? str.parent.expectedAt(scheduled) : str.parent.expectedUnknown}
+          </T>
+        </View>
+      </View>
+    </Shield>
+  );
+}
 
-  const entries = [
-    driver && { label: "Driver", name: driver.name, phone: driver.phone },
-    data?.transportOffice && {
-      label: "School office",
-      name: data.transportOffice.name,
-      phone: data.transportOffice.phone,
-    },
-    { label: "Emergency helpline", name: "Police / Ambulance", phone: data?.helpline ?? "112" },
-  ].filter(Boolean) as { label: string; name: string; phone: string }[];
+/** During the trip: one number, as large as the card allows. */
+function RunningHero({
+  child,
+  live,
+  metresAway,
+  onDetails,
+}: {
+  child: Child;
+  live: any;
+  metresAway: number | null;
+  onDetails: () => void;
+}) {
+  const eta = live?.etaMinutes;
 
   return (
-    <View style={{ gap: 8 }}>
-      {entries.map((entry) => (
-        <Pressable
-          key={entry.label}
-          onPress={() => Linking.openURL(`tel:${entry.phone}`)}
-          style={({ pressed }) => [s.contact, pressed && { backgroundColor: colors.slate50 }]}
-        >
-          <View style={s.contactIcon}>
-            <IconPhone size={16} color={colors.leaf600} />
+    <Shield style={s.hero}>
+      <HeroHead
+        child={child}
+        onPress={onDetails}
+        right={
+          <View style={[s.livePill, live?.delayed && { backgroundColor: "rgba(0,0,0,0.3)" }]}>
+            <LiveDot color={live?.delayed ? colors.sun400 : colors.white} />
+            <T role="caption" weight="700" color={colors.white}>
+              {live?.delayed ? str.parent.delayed : str.parent.live}
+            </T>
           </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <T size={13} weight="600" numberOfLines={1}>{entry.name}</T>
-            <Muted size={11}>{entry.label}</Muted>
+        }
+      />
+
+      <View style={{ marginTop: space(5) }}>
+        {eta != null ? (
+          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: space(2) }}>
+            <T role="display" color={colors.white}>
+              {eta}
+            </T>
+            <T role="body" color={tone.textOnDarkMuted} style={{ marginBottom: space(2.5) }}>
+              {str.parent.minToStop}
+            </T>
           </View>
-          <T size={13} weight="700" color={colors.brand600}>{entry.phone}</T>
-        </Pressable>
-      ))}
+        ) : (
+          <T role="heading" color={colors.white}>
+            {str.parent.etaUnknown}
+          </T>
+        )}
+
+        <T role="label" weight="400" color={tone.textOnDarkMuted} style={{ marginTop: space(1) }}>
+          {[
+            live?.nextStop ? str.parent.nextStop(live.nextStop.name) : str.parent.onTheWay,
+            str.parent.stopsLeft(live?.stopsRemaining ?? 0),
+            metresAway != null ? prettyDistance(metresAway) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </T>
+      </View>
+
+      {/* FRD §19.6 — a late bus is the thing a waiting parent most needs told,
+          and it is not visible from an ETA alone. Silence is likewise not the
+          same as "the bus is here". */}
+      {!!live?.delayed && <HeroNote>{str.parent.delayNote(live.delayMinutes)}</HeroNote>}
+      {!!live?.gpsStale && <HeroNote>{str.parent.staleNote(ago(live.position?.at))}</HeroNote>}
+    </Shield>
+  );
+}
+
+/** After the child is accounted for: the answer, not the estimate. */
+function SettledHero({ child, live, stop }: { child: Child; live: any; stop: Stop | null }) {
+  const first = child.name.split(" ")[0];
+  const mark: string = live?.childStatus;
+  const absent = mark === "absent";
+
+  const [bg, icon, headline] = absent
+    ? [colors.slate600, <IconAlert key="a" size={30} color={colors.white} />, str.parent.markedAbsent(first)]
+    : mark === "dropped"
+      ? [colors.leaf600, <IconSchool key="s" size={30} color={colors.white} />, str.parent.droppedOff(first)]
+      : [colors.leaf500, <IconCheck key="c" size={30} color={colors.white} />, str.parent.onBoard(first)];
+
+  const at = live?.trip?.timeline?.filter((e: any) => String(e.event).includes(mark)).slice(-1)[0];
+
+  return (
+    <View style={[s.hero, { backgroundColor: bg, alignItems: "center", gap: space(3) }]}>
+      <View style={s.settledBadge}>{icon}</View>
+      <T role="title" color={colors.white} style={{ textAlign: "center" }}>
+        {headline}
+      </T>
+      {!absent && !!at && (
+        <T role="label" weight="400" color="rgba(255,255,255,0.85)" style={{ textAlign: "center" }}>
+          {mark === "dropped"
+            ? str.parent.droppedAt(at.stopName ?? stop?.name ?? "", time(at.at))
+            : str.parent.boardedAt(at.stopName ?? stop?.name ?? "", time(at.at))}
+        </T>
+      )}
     </View>
   );
 }
+
+const HeroNote = ({ children }: { children: string }) => (
+  <View style={s.heroNote}>
+    <T role="label" weight="400" color={colors.white}>
+      {children}
+    </T>
+  </View>
+);
+
+/* ── Actions ───────────────────────────────────────────────────────── */
+
+/**
+ * Three targets, always in the same three places. A parent reaching for this is
+ * not reading — they are hitting the position they remember.
+ *
+ * The third one dials, it does not report. `POST /emergencies` is
+ * `requireRole("driver", "staff")`, so a parent-side SOS would be a red button
+ * that returns 403 in the one moment it is pressed. What a parent actually has
+ * is the phone, so that is what the tile is.
+ */
+function QuickActions({ driver }: { driver?: { name: string; phone: string } | null }) {
+  const contacts = useQuery<any>("/parent/emergency-contacts");
+  const office = contacts.data?.transportOffice?.phone;
+  const helpline = contacts.data?.helpline ?? "112";
+
+  return (
+    <View style={{ flexDirection: "row", gap: space(3) }}>
+      <ActionTile
+        label={str.parent.callDriver}
+        icon={<IconPhone size={22} color={colors.brand600} />}
+        bg={colors.brand50}
+        disabled={!driver?.phone}
+        onPress={() => void Linking.openURL(`tel:${driver!.phone}`)}
+      />
+      <ActionTile
+        label={str.parent.callSchool}
+        icon={<IconSchool size={22} color={colors.brand600} />}
+        bg={colors.brand50}
+        disabled={!office}
+        onPress={() => void Linking.openURL(`tel:${office}`)}
+      />
+      <ActionTile
+        label={str.parent.callHelpline}
+        icon={<IconAlert size={22} color={colors.white} />}
+        bg={tone.danger}
+        tint={tone.danger}
+        onPress={() => void Linking.openURL(`tel:${helpline}`)}
+      />
+    </View>
+  );
+}
+
+const ActionTile = ({
+  label,
+  icon,
+  bg,
+  tint,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  bg: string;
+  tint?: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) => (
+  <Pressable
+    onPress={disabled ? undefined : onPress}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    accessibilityState={{ disabled }}
+    style={({ pressed }) => [s.action, disabled && { opacity: 0.4 }, pressed && !disabled && { opacity: 0.7 }]}
+  >
+    <IconChip bg={bg} size={48}>
+      {icon}
+    </IconChip>
+    <T role="label" color={tint ?? tone.textSecondary}>
+      {label}
+    </T>
+  </Pressable>
+);
+
+/* ── Details ───────────────────────────────────────────────────────── */
+
+/**
+ * Everything true but rarely urgent: which vehicle, which route, who the
+ * attendant is, and the route-change request. Behind one tap on the hero.
+ */
+function BusDetailsSheet({
+  open,
+  onClose,
+  child,
+  live,
+  pickup,
+  drop,
+}: {
+  open: boolean;
+  onClose: () => void;
+  child: Child;
+  live: any;
+  pickup?: string;
+  drop?: string;
+}) {
+  const [changing, setChanging] = useState(false);
+
+  return (
+    <>
+      <Modal
+        open={open && !changing}
+        onClose={onClose}
+        title={str.parent.busDetails}
+        footer={
+          <Button variant="secondary" block onPress={() => setChanging(true)}>
+            {str.parent.requestRouteChange}
+          </Button>
+        }
+      >
+        <View style={{ gap: space(2.5), paddingBottom: space(2) }}>
+          <Row label={str.parent.bus} value={child.vehicleId?.busNumber} />
+          <Row label={str.parent.vehicle} value={child.vehicleId?.vehicleNumber} />
+          <Row label={str.parent.route} value={child.routeId?.name} />
+          <Row label={str.parent.driver} value={live?.driver?.name} />
+          {/* FRD §17.4 names the attendant too — the person who actually marks
+              the child on and off the bus. */}
+          <Row label={str.parent.attendant} value={live?.vehicle?.attendantId?.name} fallback={str.parent.notAssigned} />
+          <Row label={str.parent.pickupStop} value={pickup} />
+          <Row label={str.parent.dropStop} value={drop} />
+        </View>
+      </Modal>
+
+      <RouteChangeModal
+        childId={child._id}
+        open={changing}
+        onClose={() => {
+          setChanging(false);
+          onClose();
+        }}
+      />
+    </>
+  );
+}
+
+const Row = ({ label, value, fallback }: { label: string; value?: string | null; fallback?: string }) => (
+  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: space(3) }}>
+    <Muted role="label" weight="400">
+      {label}
+    </Muted>
+    <T role="label" style={{ flex: 1, textAlign: "right" }} numberOfLines={1}>
+      {value || fallback || str.common.none}
+    </T>
+  </View>
+);
 
 function RouteChangeModal({ childId, open, onClose }: { childId: string; open: boolean; onClose: () => void }) {
   const routes = useQuery<any[]>(open ? "/parent/routes" : null, [open]);
@@ -311,10 +529,12 @@ function RouteChangeModal({ childId, open, onClose }: { childId: string; open: b
     <Modal
       open={open}
       onClose={onClose}
-      title="Request a route change"
+      title={str.parent.requestRouteChange}
       footer={
         <>
-          <Button variant="secondary" onPress={onClose}>Cancel</Button>
+          <Button variant="secondary" onPress={onClose}>
+            {str.common.cancel}
+          </Button>
           <Button
             loading={busy}
             disabled={!routeId}
@@ -332,28 +552,33 @@ function RouteChangeModal({ childId, open, onClose }: { childId: string; open: b
               )
             }
           >
-            Send request
+            {str.parent.sendRequest}
           </Button>
         </>
       }
     >
-      <View style={{ gap: 14 }}>
+      <View style={{ gap: space(3.5) }}>
         <Alert>{error}</Alert>
 
         <View>
-          <T size={13} weight="600" color={colors.slate600} style={{ marginBottom: 8 }}>New route</T>
+          <T role="label" color={tone.textSecondary} style={{ marginBottom: space(2) }}>
+            {str.parent.newRoute}
+          </T>
           <Choices
             options={(routes.data ?? []).map((r) => ({ id: r._id, label: r.name }))}
             value={routeId}
-            onChange={(id) => { setRouteId(id); setPickup(""); }}
-            empty="No routes available."
+            onChange={(id) => {
+              setRouteId(id);
+              setPickup("");
+            }}
+            empty={str.parent.noRoutes}
           />
         </View>
 
         {stops.length > 0 && (
           <View>
-            <T size={13} weight="600" color={colors.slate600} style={{ marginBottom: 8 }}>
-              Preferred pickup stop
+            <T role="label" color={tone.textSecondary} style={{ marginBottom: space(2) }}>
+              {str.parent.preferredStop}
             </T>
             <Choices
               options={stops.map((st: any) => ({ id: st._id, label: `${st.sequence}. ${st.name}` }))}
@@ -364,16 +589,16 @@ function RouteChangeModal({ childId, open, onClose }: { childId: string; open: b
         )}
 
         <Field
-          label="Reason"
+          label={str.parent.reason}
           value={reason}
           onChangeText={setReason}
-          placeholder="We have moved to a new address."
+          placeholder={str.parent.reasonPlaceholder}
           multiline
-          inputStyle={{ height: 90, paddingTop: 12, textAlignVertical: "top" }}
+          inputStyle={{ height: 90, paddingTop: space(3), textAlignVertical: "top" }}
         />
 
-        <Muted style={{ lineHeight: 17 }}>
-          The school office reviews every request. You will be notified once it is decided.
+        <Muted role="label" weight="400">
+          {str.parent.routeChangeNote}
         </Muted>
       </View>
     </Modal>
@@ -395,22 +620,26 @@ function Choices({
   onChange: (id: string) => void;
   empty?: string;
 }) {
-  if (!options.length) return <Muted>{empty ?? "Nothing to choose from."}</Muted>;
+  if (!options.length) return <Muted role="body">{empty ?? str.parent.noRoutes}</Muted>;
 
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: space(1.5) }}>
       {options.map((o) => {
         const on = o.id === value;
         return (
           <Pressable
             key={o.id}
             onPress={() => onChange(o.id)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: on }}
             style={[s.choice, on && { borderColor: colors.brand600, backgroundColor: colors.brand50 }]}
           >
             <View style={[s.radio, on && { borderColor: colors.brand600 }]}>
               {on && <View style={s.radioDot} />}
             </View>
-            <T size={13} weight={on ? "600" : "400"} style={{ flex: 1 }}>{o.label}</T>
+            <T role="body" weight={on ? "600" : "400"} style={{ flex: 1 }}>
+              {o.label}
+            </T>
           </Pressable>
         );
       })}
@@ -418,81 +647,99 @@ function Choices({
   );
 }
 
+/** The shape of the answer, so the screen does not jump when it arrives. */
+const HomeSkeleton = () => (
+  <Screen>
+    <Skeleton height={168} style={{ borderRadius: radius.card }} />
+    <Card>
+      <Skeleton height={13} width="30%" />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space(3), marginTop: space(3) }}>
+        <Skeleton height={40} width={40} style={{ borderRadius: 20 }} />
+        <View style={{ flex: 1, gap: space(2) }}>
+          <Skeleton height={15} width="70%" />
+          <Skeleton height={11} width="40%" />
+        </View>
+      </View>
+    </Card>
+    <View style={{ flexDirection: "row", gap: space(3) }}>
+      <Skeleton height={92} style={{ flex: 1, borderRadius: radius.card }} />
+      <Skeleton height={92} style={{ flex: 1, borderRadius: radius.card }} />
+      <Skeleton height={92} style={{ flex: 1, borderRadius: radius.card }} />
+    </View>
+  </Screen>
+);
+
 const s = StyleSheet.create({
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.slate300,
-    backgroundColor: colors.white,
-  },
-  hero: { borderRadius: radius.card, padding: 18, overflow: "hidden", ...shadow },
+  hero: { borderRadius: radius.card, padding: space(4.5), overflow: "hidden", ...elevation.raised },
+
   livePill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: space(1.5),
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: space(2.5),
+    paddingVertical: space(1.5),
     borderRadius: radius.pill,
   },
-  staleNote: {
-    marginTop: 10,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderRadius: radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  heroFoot: {
+
+  waitBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginTop: 16,
-    marginHorizontal: -18,
-    marginBottom: -18,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    backgroundColor: "rgba(0,0,0,0.15)",
-  },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.leaf500 },
-  contact: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.slate200,
+    gap: space(3),
+    marginTop: space(5),
+    backgroundColor: "rgba(0,0,0,0.18)",
     borderRadius: radius.md,
-    padding: 10,
+    padding: space(3.5),
   },
-  contactIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.leaf50,
+
+  heroNote: {
+    marginTop: space(3),
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderRadius: radius.sm,
+    paddingHorizontal: space(3),
+    paddingVertical: space(2),
+  },
+
+  settledBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
   },
+
+  action: {
+    flex: 1,
+    alignItems: "center",
+    gap: space(2),
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: tone.border,
+    borderRadius: radius.card,
+    paddingVertical: space(3.5),
+    minHeight: 96,
+    justifyContent: "center",
+  },
+
   choice: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: space(2.5),
     borderWidth: 1,
-    borderColor: colors.slate200,
+    borderColor: tone.border,
     borderRadius: radius.md,
-    padding: 12,
+    padding: space(3),
+    minHeight: 48,
   },
   radio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: colors.slate300,
+    borderColor: tone.borderStrong,
     alignItems: "center",
     justifyContent: "center",
   },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand600 },
+  radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.brand600 },
 });

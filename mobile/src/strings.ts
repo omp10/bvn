@@ -35,6 +35,150 @@ export const str = {
     signOut: "Sign out",
   },
 
+  roster: {
+    onBoard: "On board",
+    dropped: "Dropped",
+    absent: "Absent",
+    waiting: "Waiting",
+    all: "All",
+    search: "Search a name or roll number…",
+
+    noTripTitle: "No trip running",
+    noTripDriverHint: "Start today's trip to mark students on and off the bus.",
+    noTripStaffHint: "Attendance opens as soon as the driver starts the trip.",
+    noStudentsTitle: "No students on this bus",
+    noStudentsHint: "The school office assigns students to buses.",
+    noMatchTitle: "Nobody here",
+    noMatchHint: (term: string) =>
+      term ? `Nobody on this bus matches "${term}".` : "No student matches that filter.",
+
+    markedOf: (done: number, total: number) => `${done} of ${total} marked`,
+    pickup: (stop: string) => `Pickup ${stop}`,
+    drop: (stop: string) => `Drop ${stop}`,
+    roll: (n: string) => `Roll ${n}`,
+
+    markBoarded: "Mark boarded",
+    markDropped: "Mark dropped",
+    markAbsent: "Mark absent",
+    changeFor: (name: string) => `${name} — change status`,
+    alreadyMarked: "Already marked",
+
+    bulkBoarded: "Mark all boarded",
+    bulkDropped: "Mark all dropped",
+    bulkTitle: (event: string) => (event === "dropped" ? "Mark everyone dropped?" : "Mark everyone boarded?"),
+    bulkBody: (n: number) =>
+      `This marks the ${n === 1 ? "1 child" : `${n} children`} shown and sends each of their parents a notification. Children already marked are skipped.`,
+    bulkConfirm: "Yes, mark all",
+    bulkNobody: "Everyone shown is already marked.",
+  },
+
+  driver: {
+    noBusTitle: "No bus assigned yet",
+    noBusHint: "Ask your school office to assign you to a bus. Until then there is no trip to start.",
+
+    notStarted: "Not started",
+    students: "Students",
+    stops: "Stops",
+    departs: "Departs",
+    started: "Started",
+
+    checkInTitle: "Take your check-in photo",
+    checkInHint: "Required before you can start",
+    checkInDone: "Photo taken",
+    checkInDoneHint: "Sent with your trip so the office knows who is driving",
+    checkInRetake: "Retake",
+    checkInUploading: "Uploading…",
+    checkInCameraDenied: "Camera permission is needed for the check-in photo.",
+    checkInFirst: "Take your photo above to enable the trip buttons.",
+
+    startMorning: "Start morning trip",
+    startEvening: "Start evening trip",
+    noRouteWarning: "No route is set for this bus — parents will not see stop-by-stop progress.",
+
+    sharing: "Sharing location",
+    gettingFix: "Getting a GPS fix…",
+    notSharing: "Not sharing",
+    lastFix: (when: string, accuracy?: number) =>
+      accuracy ? `Last fix ${when} · ±${accuracy} m` : `Last fix ${when}`,
+    waitingFirstFix: "Waiting for the first position",
+    queued: (n: number) => `${n} queued`,
+    queuedNote: (n: number) =>
+      `${n === 1 ? "1 point is" : `${n} points are`} saved on this phone waiting for signal. They upload automatically — nothing is lost.`,
+    screenOff: "The bus keeps reporting with the screen off — you can put the phone down.",
+
+    routeProgress: "Route progress",
+    endTrip: "End trip",
+    endTripTitle: "End this trip?",
+    endTripBody:
+      "The school and every parent on this bus will stop seeing its position. Only end the trip once you have finished the run.",
+    endTripConfirm: "End the trip",
+
+    batteryTitle: "Tracking stops when the phone sleeps?",
+    batteryBody:
+      "Some phones (Xiaomi, Oppo, Vivo, Realme) shut BalVahini down in the background. Open Settings and allow it to run without restriction — once is enough.",
+    batteryOpen: "Open app settings",
+
+    emergency: "Emergency",
+  },
+
+  parent: {
+    noChildrenTitle: "No children linked yet",
+    noChildrenHint: "Ask the school office to add your mobile number to your child's record.",
+    noBusTitle: "No bus assigned yet",
+    noBusHint:
+      "Your child is not on a bus route. The school office can add them to one — until then there is nothing to track.",
+
+    notStarted: "The bus has not started yet",
+    expectedAt: (t: string) => `Expected at your stop around ${t}`,
+    expectedUnknown: "You will see it here the moment it sets off",
+    tripEnded: "Today's trip has finished",
+
+    minToStop: "min to your stop",
+    etaUnknown: "Working out the arrival time",
+    live: "Live",
+    delayed: "Delayed",
+    nextStop: (name: string) => `Next stop ${name}`,
+    onTheWay: "On the way",
+    stopsLeft: (n: number) => (n === 1 ? "1 stop away" : `${n} stops away`),
+    delayNote: (mins: number) => `Running about ${mins} minutes behind the timetable.`,
+    staleNote: (when: string) =>
+      `The bus last reported ${when}. It may be in an area with poor signal — this is not its current position.`,
+
+    onBoard: (name: string) => `${name} is on board`,
+    droppedOff: (name: string) => `${name} has been dropped off`,
+    markedAbsent: (name: string) => `${name} is marked absent today`,
+    boardedAt: (stop: string, at: string) => `Boarded at ${stop} · ${at}`,
+    droppedAt: (stop: string, at: string) => `Dropped at ${stop} · ${at}`,
+
+    yourStop: "Your stop",
+    scheduled: "Scheduled",
+    journey: "Today's journey",
+    liveLocation: "Live location",
+    routeStatus: "Route status",
+
+    callDriver: "Driver",
+    callSchool: "School",
+    callHelpline: "Helpline",
+
+    busDetails: "Bus details",
+    bus: "Bus",
+    vehicle: "Vehicle",
+    route: "Route",
+    driver: "Driver",
+    attendant: "Bus attendant",
+    notAssigned: "Not assigned",
+    pickupStop: "Pickup stop",
+    dropStop: "Drop stop",
+    requestRouteChange: "Request a route change",
+    newRoute: "New route",
+    preferredStop: "Preferred pickup stop",
+    reason: "Reason",
+    reasonPlaceholder: "We have moved to a new address.",
+    routeChangeNote: "The school office reviews every request. You will be notified once it is decided.",
+    sendRequest: "Send request",
+    noRoutes: "No routes available.",
+  },
+
   onboarding: {
     getStarted: "Get started",
     haveAccount: "I already have an account",
