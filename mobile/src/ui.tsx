@@ -165,14 +165,22 @@ export function CrossFade({
       return;
     }
 
+    /* Both callbacks check `finished`.
+     *
+     * Starting a new animation on the same Animated.Value stops the previous
+     * one and still calls its callback, with `finished: false`. Ignoring that
+     * flag meant a fast response — data arriving inside the 200ms fade — ran
+     * the outgoing animation's callback *after* the incoming one had mounted
+     * the content, unmounting it again. The screen then sat empty forever:
+     * header, tab bar, and nothing in between, with no error anywhere. */
     if (loading) {
       setRenderSkeleton(true);
       Animated.timing(anim, {
         toValue: 0,
         duration: motion.base,
         useNativeDriver: true,
-      }).start(() => {
-        setRenderContent(false);
+      }).start(({ finished }) => {
+        if (finished) setRenderContent(false);
       });
     } else {
       setRenderContent(true);
@@ -180,8 +188,8 @@ export function CrossFade({
         toValue: 1,
         duration: motion.base,
         useNativeDriver: true,
-      }).start(() => {
-        setRenderSkeleton(false);
+      }).start(({ finished }) => {
+        if (finished) setRenderSkeleton(false);
       });
     }
   }, [loading, reduced]);

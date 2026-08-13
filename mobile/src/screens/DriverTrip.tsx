@@ -195,6 +195,11 @@ export default function DriverTrip() {
           />
         </View>
 
+        {/* Guarded on `prevTrip`, so everything inside must read `prevTrip`
+            too. `trip` goes null the instant a trip ends, while this block
+            stays mounted for the closing animation — reading `trip` here threw
+            "Cannot read property 'currentStopIndex' of null" every time a
+            driver pressed End Trip. */}
         {prevTrip ? (
           <>
             {/* A driver who does not know the phone can be put down keeps it in
@@ -207,11 +212,11 @@ export default function DriverTrip() {
 
             {gps.lastFix && stops.length > 0 && (
               <Card padded={false}>
-                <BusMap bus={gps.lastFix} stops={stops} highlightStopId={stops[trip.currentStopIndex ?? 0]?._id} height={200} />
+                <BusMap bus={gps.lastFix} stops={stops} highlightStopId={stops[prevTrip.currentStopIndex ?? 0]?._id} height={200} />
               </Card>
             )}
 
-            {stops.length > 0 && <StopProgress stops={stops} index={trip.currentStopIndex ?? 0} />}
+            {stops.length > 0 && <StopProgress stops={stops} index={prevTrip.currentStopIndex ?? 0} />}
 
             <Button variant="dangerOutline" size="lg" block haptic="heavy" onPress={() => setConfirmEnd(true)}>
               {str.driver.endTrip}

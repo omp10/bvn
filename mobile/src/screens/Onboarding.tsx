@@ -106,14 +106,26 @@ const ART = {
  */
 const ART_RATIO = 1200 / 656;
 
+/*
+ * The ratio goes on a wrapping View, not on the Image.
+ *
+ * An Image carries an intrinsic size, and React Native kept laying these out at
+ * that intrinsic height — 656 *points* — rather than honouring `aspectRatio`
+ * beside a percentage width. The result was a portrait box twice the height it
+ * should be, with `contain` fitting a wide illustration into it and leaving the
+ * subject a cropped sliver. A plain View has no intrinsic size, so its
+ * aspectRatio is unambiguous; the Image then just fills it.
+ */
 const Illustration = ({ source, label }: { source: number; label: string }) => (
-  <Image
-    source={source}
-    accessibilityRole="image"
-    accessibilityLabel={label}
-    resizeMode="contain"
-    style={{ width: "100%", alignSelf: "stretch", aspectRatio: ART_RATIO, borderRadius: radius.lg }}
-  />
+  <View style={{ width: "100%", aspectRatio: ART_RATIO, borderRadius: radius.lg, overflow: "hidden" }}>
+    <Image
+      source={source}
+      accessibilityRole="image"
+      accessibilityLabel={label}
+      resizeMode="contain"
+      style={{ width: "100%", height: "100%" }}
+    />
+  </View>
 );
 
 /* ── Step lists ────────────────────────────────────────────────────── */

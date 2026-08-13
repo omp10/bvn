@@ -44,7 +44,12 @@ async function ensureChannel() {
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 400, 200, 400],
     lightColor: colors.red600,
-    sound: "default",
+    /* No `sound` key at all.
+     *
+     * `sound: "default"` reads as "play the bundled file named default", and
+     * expo-notifications errors on every launch because no such file was ever
+     * added to the plugin's sounds array. Omitting it is what actually selects
+     * the system default, which is what an emergency channel wants. */
   });
 }
 
