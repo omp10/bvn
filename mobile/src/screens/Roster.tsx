@@ -1,5 +1,6 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { api, useAction, useQuery } from "../api";
 import { useSocket } from "../socket";
 import { classOf } from "../format";
@@ -120,6 +121,17 @@ export default function Roster({
       );
     });
   }, [students, search, filter]);
+
+  /* Refetch whenever the tab comes back into view.
+     Tab screens stay mounted, and this was a one-shot fetch — so the roster a
+     driver looked at during the morning run was still on screen, marks and
+     all, when the evening trip started hours later. The events were always
+     per-trip on the server; the staleness was entirely this screen's. */
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
+  );
 
   if (error) return <Screen><ErrorState message={error} onRetry={reload} /></Screen>;
 

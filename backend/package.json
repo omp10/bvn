@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
-    "build": "tsc",
+    "dev": "node api.js && tsx watch src/server.ts",
+    "start": "node api.js && node dist/server.js",
+    "build": "node api.js && tsc",
     "typecheck": "tsc --noEmit",
     "seed": "tsx src/seed.ts",
     "test": "tsx --test src/**/*.test.ts",
