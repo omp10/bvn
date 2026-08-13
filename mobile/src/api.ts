@@ -179,9 +179,9 @@ export async function api<T = any>(path: string, options: Options = {}): Promise
  * uploadAsync builds the multipart body natively and never touches the JS
  * FormData shim, which is the whole reason the bug goes away.
  */
-export async function uploadPhoto(uri: string): Promise<{ url: string }> {
+export async function uploadPhoto(uri: string, path = "/api/uploads/photos"): Promise<{ url: string }> {
   const send = () =>
-    FileSystem.uploadAsync(API_URL + "/api/uploads/photos", uri, {
+    FileSystem.uploadAsync(API_URL + path, uri, {
       httpMethod: "POST",
       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
       // The server names this exact field, and says so in its own error.
