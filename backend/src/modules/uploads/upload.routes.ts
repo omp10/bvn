@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth.js";
-import { badRequest, handler, notFound } from "../../lib/errors.js";
+import { badRequest, forbidden, handler, notFound } from "../../lib/errors.js";
 import { requireContext } from "../../lib/context.js";
 import { idParam, objectId, validate, z } from "../../lib/validate.js";
 import { publicUrl, removeUpload, upload, UPLOAD_KINDS, type UploadKind } from "../../lib/uploads.js";
@@ -102,6 +102,33 @@ uploadRouter.post(
 
     await removeUpload(previous);
     res.status(201).json({ url: student.photoUrl });
+  })
+);
+
+uploadRouter.post(
+  "/vehicle/:id/photo",
+  /* Both roles by design: the office manages the fleet, but the person
+     standing next to the bus with a camera is the driver. The role check
+     alone is not enough for a driver — they may only photograph their own
+     bus, which is the ownership check below. */
+  requireRole("school_admin", "driver"),
+  validate({ params: idParam }),
+  upload.single("file"),
+  handler(async (req, res) => {
+    if (!req.file) throw badRequest("no file was sent");
+    const ctx = requireContext();
+    const vehicle = await Vehicle.findOne({ _id: req.params.id });
+    if (!vehicle) throw notFound("vehicle not found");
+    if (ctx.role === "driver" && String(vehicle.driverId) !== String(ctx.userId)) {
+      throw forbidden("you can only photograph your own bus");
+    }
+
+    const previous = vehicle.photoUrl;
+    vehicle.photoUrl = publicUrl("photos", req.file.filename);
+    await vehicle.save();
+
+    await removeUpload(previous);
+    res.status(201).json({ url: vehicle.photoUrl });
   })
 );
 
