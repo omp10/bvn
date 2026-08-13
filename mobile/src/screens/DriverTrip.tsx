@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Animated, Image, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
-import { api, uploadPhoto, useAction, useQuery } from "../api";
+import { api, assetUrl, uploadPhoto, useAction, useQuery } from "../api";
 import { clearBuffer, useTripTracker } from "../tracker";
 import { ago, time } from "../format";
 import { colors, elevation, motion, radius, space, tone } from "../theme";
@@ -100,6 +100,20 @@ export default function DriverTrip() {
     );
   }
 
+  /* One photo of the bus, stored against the vehicle. Camera, not gallery —
+     the point is the bus as it looks today, in this school's livery. */
+  const takeBusPhoto = async () => {
+    if (!data?.vehicle?._id) return;
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) return;
+    const shot = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [4, 3] });
+    if (shot.canceled || !shot.assets?.[0]?.uri) return;
+    void action.run(async () => {
+      await uploadPhoto(shot.assets[0].uri, `/api/uploads/vehicle/${data.vehicle._id}/photo`);
+      reload();
+    });
+  };
+
   const startTrip = (type: "morning" | "evening") =>
     // Safe to press twice: the server returns the same trip on a retry.
     void action.run(
@@ -159,9 +173,22 @@ export default function DriverTrip() {
         ) : (
           <Shield ambient style={s.hero}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: space(3) }}>
-              <View style={s.heroIcon}>
-                <IconBus size={24} color={colors.brand600} />
-              </View>
+              {/* The bus's own face when it has one; tapping lets the
+                  driver take it. A parent at a crowded gate matches a photo
+                  faster than a number plate. */}
+              <Pressable onPress={takeBusPhoto} accessibilityRole="button" accessibilityLabel={str.driver.busPhoto}>
+                {data?.vehicle?.photoUrl ? (
+                  <Image
+                    source={{ uri: assetUrl(data.vehicle.photoUrl)! }}
+                    style={s.heroPhoto}
+                    accessibilityLabel={str.driver.busPhoto}
+                  />
+                ) : (
+                  <View style={s.heroIcon}>
+                    <IconCamera size={22} color={colors.brand600} />
+                  </View>
+                )}
+              </Pressable>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <T role="title" size={22} color={colors.white} numberOfLines={1}>
                   {data?.vehicle?.busNumber ?? str.common.none}
@@ -611,6 +638,7 @@ const s = StyleSheet.create({
     overflow: "hidden",
     ...elevation.raised,
   },
+  heroPhoto: { width: 64, height: 48, borderRadius: radius.sm, backgroundColor: "rgba(255,255,255,0.2)" },
   heroIcon: {
     width: 48,
     height: 48,
