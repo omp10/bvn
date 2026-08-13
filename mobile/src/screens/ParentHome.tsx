@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Animated, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { api, useAction, usePolling, useQuery } from "../api";
+import { Animated, Image, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { api, assetUrl, useAction, usePolling, useQuery } from "../api";
 import { useSocket, useTripRoom } from "../socket";
 import { ago, classOf, time } from "../format";
 import { metresBetween, prettyDistance } from "../geo";
@@ -22,7 +22,7 @@ type Child = {
   photoUrl?: string | null;
   pickupStopId?: string;
   dropStopId?: string;
-  vehicleId?: { busNumber: string; vehicleNumber: string } | null;
+  vehicleId?: { busNumber: string; vehicleNumber: string; photoUrl?: string | null } | null;
   routeId?: { name: string; stops?: Stop[] } | null;
 };
 
@@ -574,6 +574,15 @@ function BusDetailsSheet({
         }
       >
         <View style={{ gap: space(2.5), paddingBottom: space(2) }}>
+          {/* The bus itself, when the school or driver has photographed it — a
+              parent at a crowded gate matches a picture faster than a plate. */}
+          {!!child.vehicleId?.photoUrl && (
+            <Image
+              source={{ uri: assetUrl(child.vehicleId.photoUrl)! }}
+              style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: radius.md, marginBottom: space(1) }}
+              accessibilityLabel={str.parent.busPhoto}
+            />
+          )}
           <Row label={str.parent.bus} value={child.vehicleId?.busNumber} />
           <Row label={str.parent.vehicle} value={child.vehicleId?.vehicleNumber} />
           <Row label={str.parent.route} value={child.routeId?.name} />
