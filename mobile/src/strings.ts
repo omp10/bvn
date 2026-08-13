@@ -194,6 +194,9 @@ export const str = {
 
   driver: {
     finding: "Finding your bus…",
+    busPhoto: "Photo of the bus",
+    busPhotoHint: "Tap to photograph your bus",
+
     noBusTitle: "No bus assigned yet",
     noBusHint: "Ask your school office to assign you to a bus. Until then there is no trip to start.",
 
@@ -282,6 +285,7 @@ export const str = {
     callHelpline: "Helpline",
 
     busDetails: "Bus details",
+    busPhoto: "Photo of the school bus",
     bus: "Bus",
     vehicle: "Vehicle",
     route: "Route",

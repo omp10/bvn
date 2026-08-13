@@ -243,15 +243,45 @@ function page(stops: MapStop[], highlightStopId: string | null, follow: boolean)
         routeLine = L.polyline(latlngs, {
           color: '${colors.brand500}', weight: 5, opacity: .95, lineJoin: 'round', lineCap: 'round'
         }).addTo(map);
+        routeCoords = latlngs;
+        redrawRemaining();
       })
       .catch(function () { /* Keep the straight line. */ });
   }
 
   var busMarker = null, trailLine = null, fitted = false;
 
+  /* The part of the route still ahead of the bus, drawn heavier than the
+   * route itself. Recomputed on every fix, so the bold line visibly shrinks
+   * stop by stop as the driver proceeds — which is the difference between a
+   * picture of the route and an answer to "how much is left".
+   *
+   * Nearest-vertex on the snapped geometry, in plain JS, no further routing
+   * calls: OSRM gave a few hundred vertices for a school run, and a linear
+   * scan every ten seconds costs nothing a phone can feel. */
+  var routeCoords = null, remainLine = null, lastBusLatLng = null;
+  function redrawRemaining() {
+    if (!routeCoords || !lastBusLatLng) return;
+    var best = 0, bestD = Infinity;
+    for (var i = 0; i < routeCoords.length; i++) {
+      var dx = routeCoords[i][0] - lastBusLatLng[0], dy = routeCoords[i][1] - lastBusLatLng[1];
+      var d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    var ahead = [lastBusLatLng].concat(routeCoords.slice(best));
+    if (remainLine) remainLine.setLatLngs(ahead);
+    else remainLine = L.polyline(ahead, {
+      color: '${colors.brand700}', weight: 6, opacity: 1, lineJoin: 'round', lineCap: 'round'
+    }).addTo(map);
+    // The base route stays as the faded "whole journey" under the bold rest.
+    if (routeLine) routeLine.setStyle({ opacity: .35 });
+  }
+
   window.bvUpdate = function (state) {
     var b = state && state.bus;
     if (b && typeof b.lat === 'number') {
+      lastBusLatLng = [b.lat, b.lng];
+      redrawRemaining();
       if (busMarker) busMarker.setLatLng([b.lat, b.lng]);
       else busMarker = L.marker([b.lat, b.lng], { icon: busIcon, zIndexOffset: 1000 })
                         .addTo(map).bindPopup('The bus is here');

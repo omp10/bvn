@@ -28,7 +28,7 @@ parentRouter.get(
   "/children",
   handler(async (_req, res) => {
     const children = await Student.find({ parentId: requireContext().userId, active: true })
-      .populate("vehicleId", "busNumber vehicleNumber capacity")
+      .populate("vehicleId", "busNumber vehicleNumber capacity photoUrl")
       .populate("routeId", "name number type stops")
       .lean();
     res.json(children);
