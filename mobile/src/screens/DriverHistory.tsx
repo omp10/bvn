@@ -36,7 +36,7 @@ export default function DriverHistory() {
 
         {data?.items.length === 0 && (
           <Card>
-            <EmptyState art={require("../../assets/empty/no-history.png")} title={str.history.noTripsTitle} hint={str.history.noTripsHint} />
+            <EmptyState art={require("../../assets/empty/no-trips.png")} title={str.history.noTripsTitle} hint={str.history.noTripsHint} />
           </Card>
         )}
 

@@ -272,13 +272,19 @@ All seven onboarding screens carry a bundled illustration, living in `assets/onb
 The placeholder `<Art>` component has been completely replaced by these high-quality illustrations.
 
 ### Spot Illustrations & Child Avatars
-We added 7 transparent PNG spot illustrations for empty states, 2 failure spot illustrations in `assets/empty/`, and 8 geometric child avatars in `assets/avatars/`:
+We added 7 transparent PNG spot illustrations for empty states, 2 failure spot illustrations in `assets/empty/`, and 8 photorealistic child avatars with alpha transparency in `assets/avatars/`:
 
 - **Empty states:** `no-children.png` (empty bench), `no-trips.png` (bus under tree), `no-alerts.png` (bell at rest), `no-route.png` (route line), `no-students.png` (bus seats), `no-buses.png` (bus depot), `no-history.png` (calendar).
 - **Failure states:** `offline.png` (phone with cloud), `error.png` (bus with open bonnet).
-- **Child avatars:** `child-1.png`...`child-8.png` programmatically vector-drawn school children avatars.
+- **Child avatars:** `child-1.png`...`child-8.png` photorealistic studio portraits of Indian schoolchildren on transparent backgrounds.
+- **Background transparency removal:** Processed using a corner-based flood fill mask and blurred edges to separate uniforms, hair, and hijab from white background cleanly.
 - **Deterministic Hashing:** `Avatar` hashes child names deterministically to pick one of the 8 avatars when `photoUrl` is absent, and supports `illustrated={false}` to show initials for adults.
-- **Compression:** All illustrations were quantized to 8-bit palette PNGs, keeping the entire set under **370 KB** (far below the 2.5 MB budget).
+
+### Professional Tracking Dashboard Features
+- **Horizontal Progress:** Active trips on Parent Home show a compact horizontal timeline representing route progress: stops as dots, child's stop marked distinctly, and the bus icon indicating real-time location.
+- **Shield Status Hero (Driver):** The driver's trip screen features a `Shield` gradient status card at the top. When the trip is active, the card displays high-contrast, arm-length-readable GPS sharing status, accuracy, and queued count.
+- **Stale GPS Handling:** Pauses both the gradient's `Ambient` blob motion and the `LiveDot` pulse on Parent Home and Driver Trip when the GPS status becomes stale or unhealthy.
+- **Roster Optimistic UI & Wash Fix:** Performs instant cache updates on marking students boarded/dropped/absent, and applies a non-snapping background wash transition between any status changes.
 
 Notes on how they are handled:
 

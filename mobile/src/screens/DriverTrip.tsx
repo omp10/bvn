@@ -9,7 +9,7 @@ import { colors, elevation, motion, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
   Alert, Badge, Button, Card, Confirm, EmptyState, IconChip, LiveDot, Loading, Muted,
-  Screen, SectionHeader, StatTile, T, useReducedMotion,
+  Screen, SectionHeader, Shield, StatTile, T, useReducedMotion,
 } from "../ui";
 import { IconAlert, IconBus, IconCamera, IconCheck, IconClock, IconPin, IconUsers } from "../icons";
 import BusMap from "../BusMap";
@@ -124,67 +124,82 @@ export default function DriverTrip() {
       <Screen refreshing={loading} onRefresh={reload}>
         <Alert>{action.error}</Alert>
 
-        <Card>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: space(3) }}>
-            <IconChip bg={colors.brand50} size={52} square>
-              <IconBus size={26} color={colors.brand600} />
-            </IconChip>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <T role="title" size={22} numberOfLines={1}>
-                {data?.vehicle?.busNumber ?? str.common.none}
-              </T>
-              <Muted role="label" weight="400">
-                {data?.vehicle?.vehicleNumber}
-              </Muted>
+        {trip ? (
+          <Shield ambient={Boolean(gps.tracking && gps.lastFix && !gps.error)} paused={!Boolean(gps.tracking && gps.lastFix && !gps.error)} style={s.hero}>
+            <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <T role="label" color={tone.textOnDarkMuted}>
+                  {data?.vehicle?.busNumber ?? str.common.none} · {data?.vehicle?.vehicleNumber}
+                </T>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: space(2), marginTop: space(1.5) }}>
+                  {gps.tracking && gps.lastFix && !gps.error ? (
+                    <LiveDot color={colors.white} />
+                  ) : (
+                    <IconAlert size={20} color={colors.sun400} />
+                  )}
+                  <T role="title" size={24} color={colors.white} weight="800" numberOfLines={1}>
+                    {gps.tracking && gps.lastFix && !gps.error ? "SHARING LOCATION" : gps.tracking ? "GETTING GPS FIX..." : "LOCATION NOT SHARING"}
+                  </T>
+                </View>
+                <T role="body" color={tone.textOnDarkMuted} style={{ marginTop: space(1.5) }}>
+                  {gps.lastFix
+                    ? str.driver.lastFix(ago(gps.lastFix.at), gps.lastFix.accuracy)
+                    : str.driver.waitingFirstFix}
+                </T>
+              </View>
+              {gps.buffered > 0 && (
+                <View style={s.heroQueued}>
+                  <T role="caption" weight="800" color={colors.brand600}>
+                    {str.driver.queued(gps.buffered)}
+                  </T>
+                </View>
+              )}
             </View>
-            <Badge value={trip ? "running" : (data?.vehicle?.status ?? "not_started")} />
-          </View>
+          </Shield>
+        ) : (
+          <Shield ambient style={s.hero}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space(3) }}>
+              <View style={s.heroIcon}>
+                <IconBus size={24} color={colors.brand600} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <T role="title" size={22} color={colors.white} numberOfLines={1}>
+                  {data?.vehicle?.busNumber ?? str.common.none}
+                </T>
+                <T role="label" color={tone.textOnDarkMuted}>
+                  {data?.vehicle?.vehicleNumber}
+                </T>
+              </View>
+              <Badge value={data?.vehicle?.status ?? "not_started"} />
+            </View>
+          </Shield>
+        )}
 
-          <View style={{ flexDirection: "row", gap: space(2.5), marginTop: space(4) }}>
-            {/* Tapping the count is the obvious gesture, and it used to do
-                nothing. It now opens the roster with each child's status. */}
-            <StatTile
-              value={data?.studentCount ?? 0}
-              label={str.driver.students}
-              icon={<IconUsers size={18} color={colors.slate400} />}
-              color={colors.brand600}
-              onPress={() => navigation.navigate("Students")}
-            />
-            <StatTile
-              value={stops.length}
-              label={str.driver.stops}
-              icon={<IconPin size={18} color={colors.slate400} />}
-            />
-            <StatTile
-              value={trip ? time(trip.startedAt) : (stops[0]?.pickupTime ?? str.common.none)}
-              label={trip ? str.driver.started : str.driver.departs}
-              icon={<IconClock size={18} color={colors.slate400} />}
-            />
-          </View>
-        </Card>
+        <View style={{ flexDirection: "row", gap: space(2.5), marginTop: space(3) }}>
+          <StatTile
+            value={data?.studentCount ?? 0}
+            label={str.driver.students}
+            icon={<IconUsers size={18} color={colors.slate400} />}
+            color={colors.brand600}
+            onPress={() => navigation.navigate("Students")}
+          />
+          <StatTile
+            value={stops.length}
+            label={str.driver.stops}
+            icon={<IconPin size={18} color={colors.slate400} />}
+          />
+          <StatTile
+            value={trip ? time(trip.startedAt) : (stops[0]?.pickupTime ?? str.common.none)}
+            label={trip ? str.driver.started : str.driver.departs}
+            icon={<IconClock size={18} color={colors.slate400} />}
+          />
+        </View>
 
         {prevTrip ? (
           <>
-            <Animated.View
-              style={{
-                maxHeight: panelHeight.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 200],
-                }),
-                opacity: panelHeight,
-                overflow: "hidden",
-                marginBottom: panelHeight.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, space(3)],
-                }),
-              }}
-            >
-              <GpsPanel gps={gps} />
-            </Animated.View>
-
             {/* A driver who does not know the phone can be put down keeps it in
                 their hand all morning. Say it where they are looking. */}
-            <Card>
+            <Card style={{ marginTop: space(1) }}>
               <T role="body" color={tone.textSecondary}>
                 {str.driver.screenOff}
               </T>
@@ -198,7 +213,7 @@ export default function DriverTrip() {
 
             {stops.length > 0 && <StopProgress stops={stops} index={trip.currentStopIndex ?? 0} />}
 
-            <Button variant="danger" size="lg" block haptic="heavy" onPress={() => setConfirmEnd(true)}>
+            <Button variant="dangerOutline" size="lg" block haptic="heavy" onPress={() => setConfirmEnd(true)}>
               {str.driver.endTrip}
             </Button>
 
@@ -305,17 +320,19 @@ export default function DriverTrip() {
         a knee against the phone costs a dismissed sheet, not a false alarm to
         sixty parents.
       */}
-      <Pressable
-        onPress={() => setSos(true)}
-        accessibilityRole="button"
-        accessibilityLabel={str.driver.emergency}
-        style={({ pressed }) => [s.sos, pressed && { opacity: 0.85 }]}
-      >
-        <IconAlert size={26} color={colors.white} />
-        <T role="caption" weight="800" color={colors.white}>
-          SOS
-        </T>
-      </Pressable>
+      {!!trip && (
+        <Pressable
+          onPress={() => setSos(true)}
+          accessibilityRole="button"
+          accessibilityLabel={str.driver.emergency}
+          style={({ pressed }) => [s.sos, pressed && { opacity: 0.85 }]}
+        >
+          <IconAlert size={26} color={colors.white} />
+          <T role="caption" weight="800" color={colors.white}>
+            SOS
+          </T>
+        </Pressable>
+      )}
 
       <Confirm
         open={confirmEnd}
@@ -577,6 +594,27 @@ const s = StyleSheet.create({
     gap: space(3),
   },
   queuedPill: {
+    backgroundColor: colors.white,
+    paddingHorizontal: space(2.5),
+    paddingVertical: space(1),
+    borderRadius: radius.pill,
+  },
+
+  hero: {
+    borderRadius: radius.card,
+    padding: space(4.5),
+    overflow: "hidden",
+    ...elevation.raised,
+  },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroQueued: {
     backgroundColor: colors.white,
     paddingHorizontal: space(2.5),
     paddingVertical: space(1),

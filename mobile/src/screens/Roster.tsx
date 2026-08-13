@@ -67,7 +67,7 @@ export default function Roster({
   emergency?: boolean;
   noTripHint: string;
 }) {
-  const { data, loading, error, reload } = useQuery<{ trip: any; vehicle?: any; students: RosterStudent[] }>(
+  const { data, loading, error, reload, setData } = useQuery<{ trip: any; vehicle?: any; students: RosterStudent[] }>(
     endpoint
   );
   const { busy, error: markError, run } = useAction();
@@ -128,6 +128,19 @@ export default function Roster({
   const mark = (studentId: string, event: string) => {
     setPending(studentId + event);
     tick();
+
+    // Optimistic UI Update
+    if (data) {
+      const updated = data.students.map((s) => {
+        if (s._id === studentId) {
+          const newEvents = s.events.filter((e) => e !== event).concat(event);
+          return { ...s, events: newEvents };
+        }
+        return s;
+      });
+      setData({ ...data, students: updated });
+    }
+
     void run(
       () => api("/staff/attendance", { body: { tripId: trip._id, studentId, event } }),
       reload
@@ -147,6 +160,19 @@ export default function Roster({
     if (!todo.length) return;
     setBulkBusy(true);
     tick("heavy");
+
+    // Optimistic UI Update
+    if (data) {
+      const updated = data.students.map((s) => {
+        if (todo.some((t) => t._id === s._id)) {
+          const newEvents = s.events.filter((e) => e !== event).concat(event);
+          return { ...s, events: newEvents };
+        }
+        return s;
+      });
+      setData({ ...data, students: updated });
+    }
+
     void run(async () => {
       for (const student of todo) {
         await api("/staff/attendance", { body: { tripId: trip._id, studentId: student._id, event } });
@@ -357,46 +383,75 @@ function Row({
   // B2 Animations
   const reduced = useReducedMotion();
   const prevStatus = useRef(status);
-  const bgAnim = useRef(new Animated.Value(status === "waiting" ? 0 : 1)).current;
+
+  const getColors = (s: string) => {
+    switch (s) {
+      case "boarded": return { bg: colors.brand50, border: colors.brand200 };
+      case "absent": return { bg: colors.slate100, border: tone.border };
+      case "dropped": return { bg: colors.leaf50, border: colors.leaf100 };
+      default: return { bg: colors.white, border: tone.border };
+    }
+  };
+
+  const [colorState, setColorState] = useState(() => ({
+    prevBg: getColors(status).bg,
+    currentBg: getColors(status).bg,
+    prevBorder: getColors(status).border,
+    currentBorder: getColors(status).border,
+  }));
+
+  const colorProgress = useRef(new Animated.Value(1)).current;
   const badgeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (status !== prevStatus.current) {
+      const oldCols = getColors(prevStatus.current);
+      const newCols = getColors(status);
+      
+      setColorState({
+        prevBg: oldCols.bg,
+        currentBg: newCols.bg,
+        prevBorder: oldCols.border,
+        currentBorder: newCols.border,
+      });
+
       if (reduced) {
-        bgAnim.setValue(status === "waiting" ? 0 : 1);
+        colorProgress.setValue(1);
         badgeAnim.setValue(1);
       } else {
-        // Run background color wash timing
-        Animated.timing(bgAnim, {
-          toValue: status === "waiting" ? 0 : 1,
-          duration: motion.fast,
-          useNativeDriver: false,
-        }).start();
-
-        // Run badge scale pop
-        badgeAnim.setValue(0.8);
-        Animated.timing(badgeAnim, {
-          toValue: 1,
-          duration: motion.fast,
-          useNativeDriver: true,
-        }).start();
+        colorProgress.setValue(0);
+        Animated.parallel([
+          Animated.timing(colorProgress, {
+            toValue: 1,
+            duration: motion.fast,
+            useNativeDriver: false,
+          }),
+          Animated.sequence([
+            Animated.timing(badgeAnim, {
+              toValue: 0.8,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+            Animated.timing(badgeAnim, {
+              toValue: 1.0,
+              duration: motion.fast,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start();
       }
       prevStatus.current = status;
     }
   }, [status, reduced]);
 
-  // Determine target background and border colors
-  const targetBg = status === "boarded" ? colors.brand50 : status === "absent" ? colors.slate100 : colors.leaf50;
-  const targetBorder = status === "boarded" ? colors.brand200 : status === "absent" ? tone.border : colors.leaf100;
-
-  const backgroundColor = bgAnim.interpolate({
+  const backgroundColor = colorProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.white, targetBg],
+    outputRange: [colorState.prevBg, colorState.currentBg],
   });
 
-  const borderColor = bgAnim.interpolate({
+  const borderColor = colorProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [tone.border, targetBorder],
+    outputRange: [colorState.prevBorder, colorState.currentBorder],
   });
 
   return (

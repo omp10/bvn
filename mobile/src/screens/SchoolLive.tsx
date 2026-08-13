@@ -44,7 +44,7 @@ export default function SchoolLive() {
     return (
       <Screen refreshing={loading} onRefresh={reload}>
         <Card>
-          <EmptyState art={require("../../assets/empty/no-trips.png")} title={str.live.noneTitle} hint={str.live.noneHint} />
+          <EmptyState art={require("../../assets/empty/no-buses.png")} title={str.live.noneTitle} hint={str.live.noneHint} />
         </Card>
       </Screen>
     );

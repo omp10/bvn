@@ -47,7 +47,7 @@ export default function DriverLive() {
     return (
       <Screen>
         <Card>
-          <EmptyState title={str.map.noRouteTitle} hint={str.map.noRouteHint} />
+          <EmptyState art={require("../../assets/empty/no-route.png")} title={str.map.noRouteTitle} hint={str.map.noRouteHint} />
         </Card>
       </Screen>
     );

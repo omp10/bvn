@@ -27,7 +27,7 @@ import { useBrand } from "./brand";
 import { assetUrl, useOnline } from "./api";
 import { initials, titleCase } from "./format";
 import { str } from "./strings";
-import { IconCheck, IconEye, IconEyeOff } from "./icons";
+import { IconBus, IconCheck, IconEye, IconEyeOff } from "./icons";
 
 /* ── Motion ────────────────────────────────────────────────────────────
  *
@@ -674,8 +674,8 @@ export const IconChip = ({
 );
 
 /** The pulsing dot that means "this number is updating right now". */
-export function LiveDot({ color = colors.leaf400, size = 8 }: { color?: string; size?: number }) {
-  const reduced = useReducedMotion();
+export function LiveDot({ color = colors.leaf400, size = 8, paused }: { color?: string; size?: number; paused?: boolean }) {
+  const reduced = useReducedMotion() || paused;
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -1029,6 +1029,121 @@ export function Timeline({
   );
 }
 
+/**
+ * A horizontal track of stops, with the bus moving between them, and the
+ * child's stop marked distinctly. Styled for a dark gradient background.
+ */
+export function HorizontalProgress({
+  stops,
+  myStopId,
+  nextStopId,
+}: {
+  stops: { _id?: string; name: string }[];
+  myStopId?: string | null;
+  nextStopId?: string | null;
+}) {
+  const brand = useBrand();
+  const N = stops.length;
+  if (N < 2) return null;
+
+  const myStopIndex = stops.findIndex((s) => s._id === myStopId);
+  const nextStopIndex = stops.findIndex((s) => s._id === nextStopId);
+
+  // Position of the bus on the track
+  const busIndex = nextStopIndex <= 0 ? 0 : nextStopIndex - 0.5;
+  const busPercent = (busIndex / (N - 1)) * 100;
+
+  return (
+    <View style={{ height: 40, justifyContent: "center", position: "relative", marginHorizontal: space(2) }}>
+      {/* Background line */}
+      <View style={{ height: 4, backgroundColor: "rgba(255,255,255,0.3)", borderRadius: 2 }} />
+      
+      {/* Completed progress line */}
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          right: `${100 - busPercent}%`,
+          height: 4,
+          backgroundColor: colors.white,
+          borderRadius: 2,
+        }}
+      />
+
+      {/* Render stop dots */}
+      {stops.map((stop, i) => {
+        const isMyStop = stop._id === myStopId;
+        const isPassed = i < nextStopIndex;
+        const dotPercent = (i / (N - 1)) * 100;
+        
+        return (
+          <View
+            key={stop._id ?? i}
+            style={{
+              position: "absolute",
+              left: `${dotPercent}%`,
+              transform: [{ translateX: isMyStop ? -8 : -5 }],
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {isMyStop ? (
+              // Child's stop: distinct, larger ring
+              <View
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: colors.white,
+                  borderWidth: 3,
+                  borderColor: colors.brand600,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 1.5,
+                  elevation: 2,
+                }}
+              />
+            ) : (
+              // Regular stop dot
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: isPassed ? colors.white : "rgba(255,255,255,0.5)",
+                }}
+              />
+            )}
+          </View>
+        );
+      })}
+
+      {/* Bus marker */}
+      <View
+        style={{
+          position: "absolute",
+          left: `${busPercent}%`,
+          transform: [{ translateX: -12 }, { translateY: -2 }],
+          width: 24,
+          height: 24,
+          borderRadius: 12,
+          backgroundColor: colors.white,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+          elevation: 5,
+        }}
+      >
+        <IconBus size={14} color={brand.primary} />
+      </View>
+    </View>
+  );
+}
+
 /** Onboarding progress. Three dots beat "Step 2 of 3" for something this small. */
 export const Dots = ({ count, index }: { count: number; index: number }) => {
   const brand = useBrand();
@@ -1094,8 +1209,8 @@ const BLOBS = [
   { size: 110, bottom: -46, left: "38%" as const, drift: 18, delay: 5200, duration: 19000, alpha: 0.06 },
 ];
 
-function Ambient() {
-  const reduced = useReducedMotion();
+function Ambient({ paused }: { paused?: boolean }) {
+  const reduced = useReducedMotion() || paused;
   // One shared 0→1→0 driver for all three; they differ by delay and distance,
   // which is cheaper than three independent loops and stays in step.
   const play = useRef(new Animated.Value(0)).current;
@@ -1145,16 +1260,18 @@ export const Shield = ({
   children,
   style,
   ambient,
+  paused,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   /** Adds the drifting background. For hero cards, not for headers. */
   ambient?: boolean;
+  paused?: boolean;
 }) => {
   const { gradient } = useBrand();
   return (
     <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={style}>
-      {ambient && <Ambient />}
+      {ambient && <Ambient paused={paused} />}
       {children}
     </LinearGradient>
   );

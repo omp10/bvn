@@ -8,7 +8,7 @@ import { colors, elevation, motion, radius, space, tone } from "../theme";
 import { str } from "../strings";
 import {
   Alert, Avatar, Button, Card, Chip, CrossFade, EmptyState, Enter, ErrorState, Field, IconChip, LiveDot, Modal,
-  Muted, Screen, SectionHeader, Shield, Skeleton, T, Timeline, useReducedMotion,
+  Muted, Screen, SectionHeader, Shield, Skeleton, T, Timeline, useReducedMotion, HorizontalProgress,
 } from "../ui";
 import { IconAlert, IconCheck, IconClock, IconPhone, IconPin, IconSchool } from "../icons";
 import BusMap from "../BusMap";
@@ -125,7 +125,7 @@ export default function ParentHome() {
         ) : childStatus ? (
           <SettledHero child={child} live={live.data} stop={myStop} />
         ) : running ? (
-          <RunningHero child={child} live={live.data} metresAway={metresAway} onDetails={() => setDetails(true)} />
+          <RunningHero child={child} live={live.data} stop={myStop} metresAway={metresAway} onDetails={() => setDetails(true)} />
         ) : (
           <WaitingHero child={child} scheduled={scheduled} onDetails={() => setDetails(true)} />
         )}
@@ -157,7 +157,19 @@ export default function ParentHome() {
             It is a preview: a drag inside a scrolling screen scrolls the screen,
             so panning happens in BusMap's own full-screen view. */}
         {running && fix?.lat != null && (
-          <Card title={str.parent.liveLocation} subtitle={str.common.lastUpdated(ago(fix.at))} padded={false}>
+          <Card
+            title={str.parent.liveLocation}
+            subtitle={str.common.lastUpdated(ago(fix.at))}
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: space(1.5) }}>
+                <LiveDot color={live.data?.gpsStale ? colors.slate400 : colors.brand600} paused={live.data?.gpsStale} />
+                <T role="caption" color={live.data?.gpsStale ? tone.textMuted : colors.brand600} weight="700">
+                  {live.data?.gpsStale ? "STALE" : str.parent.live}
+                </T>
+              </View>
+            }
+            padded={false}
+          >
             <BusMap
               bus={{ lat: fix.lat, lng: fix.lng }}
               stops={child.routeId?.stops ?? []}
@@ -272,11 +284,13 @@ function WaitingHero({
 function RunningHero({
   child,
   live,
+  stop,
   metresAway,
   onDetails,
 }: {
   child: Child;
   live: any;
+  stop: Stop | null;
   metresAway: number | null;
   onDetails: () => void;
 }) {
@@ -333,13 +347,13 @@ function RunningHero({
   });
 
   return (
-    <Shield ambient style={s.hero}>
+    <Shield ambient paused={live?.gpsStale} style={s.hero}>
       <HeroHead
         child={child}
         onPress={onDetails}
         right={
           <View style={[s.livePill, live?.delayed && { backgroundColor: "rgba(0,0,0,0.3)" }]}>
-            <LiveDot color={live?.delayed ? colors.sun400 : colors.white} />
+            <LiveDot color={live?.delayed ? colors.sun400 : colors.white} paused={live?.gpsStale} />
             <T role="caption" weight="700" color={colors.white}>
               {live?.delayed ? str.parent.delayed : str.parent.live}
             </T>
@@ -390,6 +404,16 @@ function RunningHero({
             .filter(Boolean)
             .join(" · ")}
         </T>
+
+        {child.routeId?.stops && child.routeId.stops.length > 0 && (
+          <View style={{ marginTop: space(4), marginBottom: space(2) }}>
+            <HorizontalProgress
+              stops={child.routeId.stops}
+              myStopId={stop?._id}
+              nextStopId={live?.nextStop?._id}
+            />
+          </View>
+        )}
       </View>
 
       {/* FRD §19.6 — a late bus is the thing a waiting parent most needs told,
