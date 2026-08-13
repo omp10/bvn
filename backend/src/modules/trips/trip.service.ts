@@ -64,6 +64,40 @@ export async function startTrip(driverId: string, type: TripType, schoolId: stri
 
     await Vehicle.updateOne({ _id: vehicle._id }, { status: "running" });
 
+    /* An evening trip inherits the morning's absentees.
+     *
+     * A child marked absent in the morning was not at school, so they are not
+     * at the gate for the evening bus either — and without this, the evening
+     * roster showed them as "waiting" and an attendant had to re-mark sixty
+     * children's worth of knowledge the school already had. Only `absent`
+     * carries: boarded and dropped describe one journey and start clean.
+     * The attendant can still override — marking the child boarded simply
+     * adds the newer event, exactly as it always did. */
+    if (type === "evening") {
+      const morning = await Trip.findOne({
+        vehicleId: vehicle._id,
+        tripDate: todayKey(),
+        type: "morning",
+      }).lean();
+      if (morning) {
+        const absentees = await Attendance.find({ tripId: morning._id, event: "absent" })
+          .select("studentId")
+          .lean();
+        if (absentees.length) {
+          await Attendance.insertMany(
+            absentees.map((a) => ({
+              tripId: trip._id,
+              studentId: a.studentId,
+              event: "absent",
+              markedBy: driverId,
+              at: new Date(),
+            })),
+            { ordered: false }
+          );
+        }
+      }
+    }
+
     const students = await Student.find({ vehicleId: vehicle._id, active: true })
       .select("parentId")
       .lean();

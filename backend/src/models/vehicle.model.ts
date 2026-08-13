@@ -29,6 +29,10 @@ const vehicleSchema = new Schema(
     vehicleNumber: { type: String, required: true, unique: true, uppercase: true, trim: true },
     /** School-facing label, e.g. "Bus 4". Only meaningful once assigned. */
     busNumber: { type: String, trim: true },
+    /* A photo of the actual bus. Uploaded by the school office or by the
+       assigned driver; shown in both phone apps so a parent at a crowded gate
+       can match the vehicle by sight, not only by number plate. */
+    photoUrl: String,
     name: String,
     type: { type: String, enum: ["bus", "minibus", "van"], default: "bus" },
     capacity: { type: Number, required: true, min: 1, max: 100 },
