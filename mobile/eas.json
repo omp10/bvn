@@ -5,6 +5,18 @@
       "android": { "buildType": "apk" },
       "env": { "EXPO_PUBLIC_API_URL": "https://balvahini.com" }
     },
+    "dev-parent": {
+      "extends": "base",
+      "distribution": "internal",
+      "developmentClient": true,
+      "env": { "APP_VARIANT": "parent" }
+    },
+    "dev-staff": {
+      "extends": "base",
+      "distribution": "internal",
+      "developmentClient": true,
+      "env": { "APP_VARIANT": "staff" }
+    },
     "parent": {
       "extends": "base",
       "distribution": "internal",
