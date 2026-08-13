@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
@@ -59,7 +59,11 @@ export default function AuthLayout({ children, footer }: { children: ReactNode; 
             keyboardDismissMode="none"
           >
             <View style={s.brand}>
-              <Mark />
+              <Image
+                source={useBrand().logoUrl ? { uri: useBrand().logoUrl! } : require("../../assets/icon.png")}
+                style={{ width: 64, height: 64, borderRadius: radius.md }}
+                resizeMode="contain"
+              />
               {/* The school's own app name once a code has resolved, so the
                   parent sees their school on the screen where a mistyped code
                   is still cheap to fix. Falls back to ours until then. */}

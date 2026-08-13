@@ -76,7 +76,7 @@ for (const [index, spec] of SCHOOLS.entries()) {
       startedAt: new Date(),
       expiresAt: new Date(Date.now() + 365 * 86_400_000),
     },
-    branding: { appName: spec.name, themeColor: spec.colour },
+    branding: { appName: spec.name, themeColor: spec.colour, logoUrl: "/uploads/logos/logo.png" },
   });
 
   const schoolId = String(school._id);

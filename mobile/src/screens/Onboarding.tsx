@@ -112,7 +112,7 @@ const Illustration = ({ source, label }: { source: number; label: string }) => (
     accessibilityRole="image"
     accessibilityLabel={label}
     resizeMode="contain"
-    style={{ width: "100%", aspectRatio: ART_RATIO, borderRadius: radius.lg }}
+    style={{ width: "100%", alignSelf: "stretch", aspectRatio: ART_RATIO, borderRadius: radius.lg }}
   />
 );
 

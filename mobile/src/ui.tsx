@@ -87,11 +87,12 @@ export function Enter({
     }).start();
   }, [play, delay, reduced]);
 
-  if (reduced) return <View style={style}>{children}</View>;
+  if (reduced) return <View style={[{ alignSelf: "stretch" }, style]}>{children}</View>;
 
   return (
     <Animated.View
       style={[
+        { alignSelf: "stretch" },
         style,
         {
           opacity: play,
