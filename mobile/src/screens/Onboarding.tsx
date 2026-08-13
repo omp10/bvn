@@ -91,21 +91,30 @@ const ART = {
 };
 
 /**
- * The aspect ratio comes off the bundled asset rather than being written down
- * here, so recropping an image cannot silently letterbox or stretch it.
+ * Every onboarding image is normalised to 1200 × 656 on disk, so the ratio is a
+ * constant rather than something read at runtime.
+ *
+ * It used to come from `Image.resolveAssetSource(source)`, which reads clean in
+ * development and returned no usable dimensions in the release build. That made
+ * `aspectRatio` NaN — which React Native silently ignores rather than warning
+ * about — so the Image fell back to its intrinsic size and laid itself out 656
+ * *points* tall. On a phone that is a portrait box roughly twice the height it
+ * should be, and `contain` inside it cropped a wide illustration down to a
+ * sliver of bus running off the edge of the screen.
+ *
+ * A constant cannot be NaN. If an image is ever recropped, match this shape.
  */
-const Illustration = ({ source, label }: { source: number; label: string }) => {
-  const meta = Image.resolveAssetSource(source);
-  return (
-    <Image
-      source={source}
-      accessibilityRole="image"
-      accessibilityLabel={label}
-      resizeMode="contain"
-      style={{ width: "100%", aspectRatio: meta.width / meta.height, borderRadius: radius.lg }}
-    />
-  );
-};
+const ART_RATIO = 1200 / 656;
+
+const Illustration = ({ source, label }: { source: number; label: string }) => (
+  <Image
+    source={source}
+    accessibilityRole="image"
+    accessibilityLabel={label}
+    resizeMode="contain"
+    style={{ width: "100%", aspectRatio: ART_RATIO, borderRadius: radius.lg }}
+  />
+);
 
 /* ── Step lists ────────────────────────────────────────────────────── */
 
@@ -401,7 +410,13 @@ export default function OnboardingReplay({ navigation }: any) {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
-  body: { padding: space(6), paddingTop: space(4), flexGrow: 1, justifyContent: "center" },
+  /* `flexGrow` so a short step still fills the screen, but deliberately no
+     `justifyContent: "center"`. Centring a ScrollView's content container
+     overflows it equally in both directions once the content is taller than the
+     viewport, and the overflow is unreachable — which clipped the school-code
+     body text and the location primer's title behind the footer. Top-aligned
+     always scrolls to everything, including at a 130% font scale. */
+  body: { padding: space(6), paddingTop: space(4), flexGrow: 1, gap: space(6) },
   foot: {
     padding: space(6),
     paddingTop: space(4),

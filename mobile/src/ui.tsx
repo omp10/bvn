@@ -187,23 +187,28 @@ export function CrossFade({
 
   if (reduced) return <>{loading ? skeleton : children}</>;
 
+  /* Both layers need `flex: 1`, not `width: "100%"`.
+   *
+   * What goes inside these is a `<Screen>`, which is `flex: 1` over a
+   * ScrollView. A flex child with no height to claim collapses to nothing, so
+   * a wrapper that only set a width rendered every one of these screens as a
+   * header, a tab bar, and a completely empty space between them. */
   return (
     <View style={{ flex: 1 }}>
+      {renderContent && (
+        <Animated.View style={{ flex: 1, opacity: anim }}>{children}</Animated.View>
+      )}
       {renderSkeleton && (
         <Animated.View
-          style={{
-            opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-            position: renderContent ? "absolute" : "relative",
-            width: "100%",
-            zIndex: 1,
-          }}
+          // Absolute only while it is sitting on top of real content; on its
+          // own it has to take the space so it can be seen at all.
+          pointerEvents="none"
+          style={[
+            renderContent ? StyleSheet.absoluteFill : { flex: 1 },
+            { opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), zIndex: 1 },
+          ]}
         >
           {skeleton}
-        </Animated.View>
-      )}
-      {renderContent && (
-        <Animated.View style={{ opacity: anim, width: "100%" }}>
-          {children}
         </Animated.View>
       )}
     </View>
